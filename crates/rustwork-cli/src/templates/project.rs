@@ -16,6 +16,7 @@ tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 anyhow = "1.0"
 serde = { version = "1.0", features = ["derive"] }
+sea-orm = { version = "1.0", features = ["sqlx-postgres", "runtime-tokio-native-tls", "macros"] }
 "#;
 
 pub const MAIN_RS: &str = r#"use rustwork::{AppConfig, AppState, init_database};
