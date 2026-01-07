@@ -1,0 +1,16 @@
+[package]
+name = "test-api"
+version = "0.1.0"
+edition = "2021"
+
+# This project is standalone, not part of rustwork workspace
+[workspace]
+
+[dependencies]
+rustwork = { path = "../crates/rustwork" }
+axum = "0.7"
+tokio = { version = "1.40", features = ["full"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+anyhow = "1.0"
+serde = { version = "1.0", features = ["derive"] }

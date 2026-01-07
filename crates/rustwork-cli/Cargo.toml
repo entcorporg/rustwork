@@ -1,0 +1,27 @@
+[package]
+name = "rustwork-cli"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "rustwork"
+path = "src/main.rs"
+
+[dependencies]
+# CLI
+clap = { workspace = true }
+minijinja = { workspace = true }
+
+# Utils
+anyhow = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+# File operations
+tokio = { workspace = true }
+chrono = { workspace = true }
+
+# Process management for watch mode
+which = "6.0"
