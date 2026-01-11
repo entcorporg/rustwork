@@ -6,9 +6,7 @@ authors.workspace = true
 license.workspace = true
 
 [features]
-default = ["rest"]
-rest = []
-graphql = ["async-graphql", "async-graphql-axum"]
+default = []
 otel = ["opentelemetry", "opentelemetry-otlp"]
 
 [dependencies]
@@ -38,10 +36,6 @@ anyhow = { workspace = true }
 # Utils
 uuid = { workspace = true }
 chrono = { workspace = true }
-
-# GraphQL (optional)
-async-graphql = { workspace = true, optional = true }
-async-graphql-axum = { workspace = true, optional = true }
 
 # OpenTelemetry (optional)
 opentelemetry = { workspace = true, optional = true }

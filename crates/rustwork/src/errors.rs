@@ -17,9 +17,6 @@ pub enum AppError {
     #[error("Bad request: {0}")]
     BadRequest(String),
 
-    #[error("Unauthorized: {0}")]
-    Unauthorized(String),
-
     #[error("Forbidden: {0}")]
     Forbidden(String),
 
@@ -34,6 +31,9 @@ pub enum AppError {
 
     #[error("Conflict: {0}")]
     Conflict(String),
+
+    #[error("Not implemented: {0}")]
+    NotImplemented(String),
 }
 
 impl IntoResponse for AppError {
@@ -41,7 +41,6 @@ impl IntoResponse for AppError {
         let (status, error_message) = match self {
             AppError::NotFound(msg) => (StatusCode::NOT_FOUND, msg),
             AppError::BadRequest(msg) => (StatusCode::BAD_REQUEST, msg),
-            AppError::Unauthorized(msg) => (StatusCode::UNAUTHORIZED, msg),
             AppError::Forbidden(msg) => (StatusCode::FORBIDDEN, msg),
             AppError::Database(msg) => (
                 StatusCode::INTERNAL_SERVER_ERROR,
@@ -50,6 +49,7 @@ impl IntoResponse for AppError {
             AppError::Validation(msg) => (StatusCode::UNPROCESSABLE_ENTITY, msg),
             AppError::Conflict(msg) => (StatusCode::CONFLICT, msg),
             AppError::InternalError(msg) => (StatusCode::INTERNAL_SERVER_ERROR, msg),
+            AppError::NotImplemented(msg) => (StatusCode::NOT_IMPLEMENTED, msg),
         };
 
         let body = Json(json!({
@@ -82,3 +82,99 @@ impl From<anyhow::Error> for AppError {
         AppError::InternalError(err.to_string())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_not_found_error_message() {
+        let error = AppError::NotFound("user".to_string());
+        assert_eq!(error.to_string(), "Not found: user");
+    }
+
+    #[test]
+    fn test_bad_request_error_message() {
+        let error = AppError::BadRequest("invalid input".to_string());
+        assert_eq!(error.to_string(), "Bad request: invalid input");
+    }
+
+    #[test]
+    fn test_validation_error_message() {
+        let error = AppError::Validation("email format".to_string());
+        assert_eq!(error.to_string(), "Validation error: email format");
+    }
+
+    #[test]
+    fn test_database_error_message() {
+        let error = AppError::Database("connection failed".to_string());
+        assert_eq!(error.to_string(), "Database error: connection failed");
+    }
+
+    #[test]
+    fn test_conflict_error_message() {
+        let error = AppError::Conflict("duplicate key".to_string());
+        assert_eq!(error.to_string(), "Conflict: duplicate key");
+    }
+
+    #[test]
+    fn test_not_implemented_error() {
+        let error = AppError::NotImplemented("feature X".to_string());
+        assert_eq!(error.to_string(), "Not implemented: feature X");
+    }
+
+    #[test]
+    fn test_forbidden_error() {
+        let error = AppError::Forbidden("access denied".to_string());
+        assert_eq!(error.to_string(), "Forbidden: access denied");
+    }
+
+    #[test]
+    fn test_internal_error() {
+        let error = AppError::InternalError("unexpected".to_string());
+        assert_eq!(error.to_string(), "Internal server error: unexpected");
+    }
+
+    #[test]
+    fn test_app_result_ok() {
+        let result: AppResult<i32> = Ok(42);
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), 42);
+    }
+
+    #[test]
+    fn test_app_result_err() {
+        let result: AppResult<i32> = Err(AppError::NotFound("item".to_string()));
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_from_anyhow_error() {
+        let anyhow_err = anyhow::anyhow!("something went wrong");
+        let app_err: AppError = anyhow_err.into();
+        assert!(matches!(app_err, AppError::InternalError(_)));
+        assert!(app_err.to_string().contains("something went wrong"));
+    }
+
+    #[test]
+    fn test_db_err_record_not_found_conversion() {
+        let db_err = DbErr::RecordNotFound("user not found".to_string());
+        let app_err: AppError = db_err.into();
+        assert!(matches!(app_err, AppError::NotFound(_)));
+    }
+
+    #[test]
+    fn test_db_err_custom_conversion() {
+        let db_err = DbErr::Custom("custom error".to_string());
+        let app_err: AppError = db_err.into();
+        assert!(matches!(app_err, AppError::Database(_)));
+    }
+
+    #[test]
+    fn test_error_debug_impl() {
+        let error = AppError::BadRequest("test".to_string());
+        let debug_str = format!("{:?}", error);
+        assert!(debug_str.contains("BadRequest"));
+    }
+}
+

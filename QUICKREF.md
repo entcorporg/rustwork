@@ -26,6 +26,27 @@ rustwork new my-api
 cd my-api
 ```
 
+### Database Commands
+
+```bash
+# Show migration status
+rustwork db status
+
+# Run all pending migrations
+rustwork db migrate
+
+# Run N migrations
+rustwork db migrate --steps 2
+
+# Rollback last migration
+rustwork db rollback
+
+# Rollback N migrations
+rustwork db rollback --steps 2
+```
+
+**Note**: Les migrations sont maintenant basées sur **sea-orm-migration** et sont portables entre SQLite, PostgreSQL et MySQL. Elles sont écrites en Rust, pas en SQL brut.
+
 ### Generate Controller
 
 ```bash
@@ -71,6 +92,187 @@ Requires `cargo-watch`:
 cargo install cargo-watch
 ```
 
+### MCP Server (Model Context Protocol)
+
+Start an MCP server for IDE integration:
+
+```bash
+rustwork mcp
+```
+
+With custom options:
+```bash
+rustwork mcp --host 127.0.0.1 --port 4000 --project /path/to/project
+```
+
+#### Protocol
+
+The MCP server implements JSON-RPC 2.0 over TCP with newline-delimited JSON messages.
+
+**Security**: The server binds to `127.0.0.1` by default for security. It provides read-only access to project metadata and never exposes secrets.
+
+#### Available Methods
+
+##### get_manifest
+
+Get the project manifest content.
+
+Request:
+```json
+{"jsonrpc":"2.0","id":1,"method":"get_manifest","params":{}}
+```
+
+Response:
+```json
+{
+  "jsonrpc":"2.0",
+  "id":1,
+  "result":{
+    "version":"0.1.0",
+    "routes":[],
+    "models":[],
+    "controllers":["health"]
+  }
+}
+```
+
+##### get_conventions
+
+Get Rustwork framework conventions and best practices.
+
+Request:
+```json
+{"jsonrpc":"2.0","id":2,"method":"get_conventions","params":{}}
+```
+
+Response:
+```json
+{
+  "jsonrpc":"2.0",
+  "id":2,
+  "result":{
+    "error_handling":{
+      "type":"AppError",
+      "location":"src/errors.rs",
+      "variants":["NotFound","BadRequest","Forbidden","InternalError","DatabaseError"]
+    },
+    "response_format":{
+      "type":"ApiResponse<T>",
+      "structure":{
+        "success":"ApiResponse::success(data)",
+        "error":"ApiResponse::error(message)"
+      }
+    },
+    "handler_signature":{
+      "standard":"async fn handler(State(state): State<AppState>) -> Result<ApiResponse<T>, AppError>"
+    },
+    "configuration":{
+      "env_keys":{
+        "database":["DB_CONNECTION","DB_HOST","DB_PORT","DB_DATABASE","DB_USERNAME","DB_PASSWORD"],
+        "application":["APP_HOST","APP_PORT","APP_ENV"]
+      }
+    },
+    "middleware":{
+      "builtin":["RequestId","Logger","Cors"]
+    }
+  }
+}
+```
+
+##### get_routes
+
+Get registered routes from the manifest.
+
+Request:
+```json
+{"jsonrpc":"2.0","id":3,"method":"get_routes","params":{}}
+```
+
+Response:
+```json
+{
+  "jsonrpc":"2.0",
+  "id":3,
+  "result":[]
+}
+```
+
+##### get_models
+
+Get registered models from the manifest.
+
+Request:
+```json
+{"jsonrpc":"2.0","id":4,"method":"get_models","params":{}}
+```
+
+Response:
+```json
+{
+  "jsonrpc":"2.0",
+  "id":4,
+  "result":[]
+}
+```
+
+##### get_project_info
+
+Get general project information.
+
+Request:
+```json
+{"jsonrpc":"2.0","id":5,"method":"get_project_info","params":{}}
+```
+
+Response:
+```json
+{
+  "jsonrpc":"2.0",
+  "id":5,
+  "result":{
+    "rustwork_version":"0.1.0",
+    "project_name":"my-api",
+    "database":null,
+    "features":[]
+  }
+}
+```
+
+#### Error Responses
+
+When an error occurs, the server returns a JSON-RPC error:
+
+```json
+{
+  "jsonrpc":"2.0",
+  "id":1,
+  "error":{
+    "code":-32601,
+    "message":"Method not found: unknown_method"
+  }
+}
+```
+
+Error codes:
+- `-32600` - Invalid Request
+- `-32601` - Method Not Found
+- `-32602` - Invalid Params
+- `-32603` - Internal Error (e.g., manifest not found)
+
+#### Example: Testing with netcat
+
+```bash
+# Start the server
+rustwork mcp
+
+# In another terminal, connect and send requests
+echo '{"jsonrpc":"2.0","id":1,"method":"get_manifest","params":{}}' | nc 127.0.0.1 4000
+
+# Or use telnet
+telnet 127.0.0.1 4000
+{"jsonrpc":"2.0","id":1,"method":"get_conventions","params":{}}
+```
+
 ## Project Structure
 
 After `rustwork new my-api`:
@@ -83,7 +285,9 @@ my-api/
 ├── config/
 │   ├── default.toml       # Base configuration
 │   └── dev.toml           # Development overrides
-├── migrations/            # Database migrations
+├── data/                  # SQLite databases (default)
+│   └── .gitkeep
+├── migrations/            # Database migrations (SQL)
 ├── src/
 │   ├── main.rs           # Entry point
 │   ├── app.rs            # Router builder
@@ -94,22 +298,48 @@ my-api/
 │   │   └── health.rs
 │   ├── models/           # Database entities
 │   ├── services/         # Business logic
-│   ├── middlewares/      # Custom middleware
-│   └── graphql/          # GraphQL schema
+│   └── middlewares/      # Custom middleware
 └── .rustwork/
     └── manifest.json     # Project metadata
 ```
 
 ## Configuration
 
-### Environment Variables
+### Environment Variables (Laravel-style)
 
 ```bash
 # .env
 APP_ENV=dev
+
+# Database - SQLite (default, zero config)
+DB_CONNECTION=sqlite
+DB_SQLITE_PATH=./data/app.db
+
+# Database - PostgreSQL
+# DB_CONNECTION=postgres
+# DB_HOST=127.0.0.1
+# DB_PORT=5432
+# DB_DATABASE=mydb
+# DB_USERNAME=postgres
+# DB_PASSWORD=secret
+
+# Database - MySQL
+# DB_CONNECTION=mysql
+# DB_HOST=127.0.0.1
+# DB_PORT=3306
+# DB_DATABASE=mydb
+# DB_USERNAME=root
+# DB_PASSWORD=secret
+
+# Or use direct URL (highest priority)
+# DB_URL=postgres://user:pass@localhost:5432/dbname
+
+# Server overrides
 APP__SERVER__PORT=3000
-APP__DATABASE__URL=postgres://user:pass@localhost/dbname
-APP__AUTH__JWT_SECRET=your-secret
+
+# CORS Configuration
+# APP__CORS__ENABLED=true
+# APP__CORS__ALLOWED_ORIGINS=["http://localhost:3000"]
 ```
 
 ### Config Files
@@ -121,18 +351,96 @@ host = "0.0.0.0"
 port = 3000
 
 [database]
-url = "postgres://postgres:postgres@localhost/mydb"
+connection = "sqlite"
+sqlite_path = "./data/app.db"
+
+[database.pool]
 max_connections = 10
 min_connections = 2
+connect_timeout_ms = 8000
 
-[auth]
-jwt_secret = "change-me"
-jwt_expiration = 86400
+[cors]
+enabled = false
+allowed_origins = []
+allowed_methods = ["GET", "POST", "PUT", "PATCH", "DELETE"]
+allowed_headers = ["Content-Type", "Accept"]
+allow_credentials = false
+max_age_seconds = 3600
+```
+
+## Multi-Database Support
+
+Rustwork supports **SQLite, PostgreSQL, and MySQL** out of the box.
+
+### SQLite (Default)
+
+**Zero configuration** - works immediately:
+
+```bash
+rustwork new my-api
+cd my-api
+cargo run  # Uses ./data/app.db automatically
+```
+
+### Switch to PostgreSQL
+
+1. Start PostgreSQL (Docker example):
+
+```bash
+docker run -d \
+  --name postgres \
+  -e POSTGRES_PASSWORD=secret \
+  -e POSTGRES_DB=mydb \
+  -p 5432:5432 \
+  postgres:16
+```
+
+2. Update `.env`:
+
+```bash
+DB_CONNECTION=postgres
+DB_DATABASE=mydb
+DB_USERNAME=postgres
+DB_PASSWORD=secret
+```
+
+3. Run:
+
+```bash
+cargo run
+```
+
+### Switch to MySQL
+
+1. Start MySQL (Docker example):
+
+```bash
+docker run -d \
+  --name mysql \
+  -e MYSQL_ROOT_PASSWORD=secret \
+  -e MYSQL_DATABASE=mydb \
+  -p 3306:3306 \
+  mysql:8
+```
+
+2. Update `.env`:
+
+```bash
+DB_CONNECTION=mysql
+DB_DATABASE=mydb
+DB_USERNAME=root
+DB_PASSWORD=secret
+```
+
+3. Run:
+
+```bash
+cargo run
 ```
 
 ## Common Workflows
 
-### 1. Create REST API
+### 1. Create REST API with SQLite (quickest)
 
 ```bash
 # Create project
@@ -143,11 +451,34 @@ cd blog-api
 rustwork make controller Post
 rustwork make model Post
 
-# Configure database
-cp .env.example .env
-# Edit .env with your database URL
+# Run (SQLite works out of the box)
+cargo run
+```
 
-# Run migrations (requires sea-orm-cli)
+### 2. Create REST API with PostgreSQL
+
+```bash
+# Create project
+rustwork new blog-api
+cd blog-api
+
+# Start PostgreSQL
+docker-compose up -d  # or use docker run
+
+# Configure .env for PostgreSQL
+cp .env.example .env
+# Edit DB_CONNECTION=postgres and credentials
+
+# Generate resources
+rustwork make controller Post
+rustwork make model Post
+
+# Run migrations
+rustwork db migrate
+
+# Start server
+cargo run
+```
 sea-orm-cli migrate up
 
 # Start server
@@ -201,7 +532,6 @@ pub async fn my_handler() -> AppResult<Json<ApiResponse<Data>>> {
 Error types:
 - `NotFound` → 404
 - `BadRequest` → 400
-- `Unauthorized` → 401
 - `Forbidden` → 403
 - `Validation` → 422
 - `Conflict` → 409

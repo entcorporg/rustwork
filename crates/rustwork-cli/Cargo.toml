@@ -10,6 +10,9 @@ name = "rustwork"
 path = "src/main.rs"
 
 [dependencies]
+# Rustwork lib (for db commands)
+rustwork = { path = "../rustwork" }
+
 # CLI
 clap = { workspace = true }
 minijinja = { workspace = true }
@@ -19,9 +22,27 @@ anyhow = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 
+# Database
+sea-orm = { workspace = true }
+sea-orm-migration = { workspace = true }
+dotenvy = { workspace = true }
+async-trait = "0.1"
+
 # File operations
 tokio = { workspace = true }
 chrono = { workspace = true }
 
 # Process management for watch mode
 which = "6.0"
+
+# Code parsing and analysis
+syn = { version = "2.0", features = ["full", "visit", "extra-traits"] }
+quote = "1.0"
+proc-macro2 = { version = "1.0", features = ["span-locations"] }
+
+# File watching
+notify = "6.1"
+
+# Testing
+[dev-dependencies]
+tempfile = "3.8"
