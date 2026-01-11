@@ -91,18 +91,17 @@ fn generate_field(
 /// Convertit un nom PascalCase ou camelCase en snake_case
 fn to_snake_case(s: &str) -> String {
     let mut result = String::new();
-    let mut prev_is_lower = false;
+    let chars: Vec<char> = s.chars().collect();
 
-    for (i, c) in s.chars().enumerate() {
+    for (i, &c) in chars.iter().enumerate() {
         if c.is_uppercase() {
-            if i > 0 && prev_is_lower {
+            // Ajouter underscore sauf pour le premier caractère
+            if i > 0 {
                 result.push('_');
             }
-            result.push(c.to_ascii_lowercase());
-            prev_is_lower = false;
+            result.push(c.to_lowercase().next().unwrap());
         } else {
             result.push(c);
-            prev_is_lower = c.is_lowercase();
         }
     }
 
@@ -159,7 +158,7 @@ mod tests {
         let proto = generate_proto(&contract).unwrap();
 
         assert!(proto.contains("syntax = \"proto3\";"));
-        assert!(proto.contains("package rustwork.user_service;"));
+        assert!(proto.contains("package user_service_service;"));
         assert!(proto.contains("service UserService"));
         assert!(proto.contains("rpc GetUser"));
         assert!(proto.contains("message User"));

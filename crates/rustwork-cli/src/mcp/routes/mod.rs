@@ -28,9 +28,13 @@ mod tests {
         visitor.visit_file(&syntax_tree);
 
         assert_eq!(visitor.routes.len(), 2);
-        assert_eq!(visitor.routes[0].path, "/users");
+        // Note: les routes sont parsées dans l'ordre inverse (récursion du visiteur)
+        assert_eq!(visitor.routes[0].path, "/users/:id");
         assert_eq!(visitor.routes[0].method, HttpMethod::GET);
-        assert_eq!(visitor.routes[0].handler, "list_users");
+        assert_eq!(visitor.routes[0].handler, "get_user");
+        assert_eq!(visitor.routes[1].path, "/users");
+        assert_eq!(visitor.routes[1].method, HttpMethod::GET);
+        assert_eq!(visitor.routes[1].handler, "list_users");
     }
 
     #[test]
