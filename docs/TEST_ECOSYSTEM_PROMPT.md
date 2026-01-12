@@ -1,6 +1,8 @@
 # Prompt de test Rustwork - Écosystème Microservices
 
 > À utiliser par une instance Copilot pour valider l'écosystème Rustwork après modifications.
+> 
+> **Branche de test :** `test` sur https://github.com/entcorporg/rustwork.git
 
 ## Contexte
 
