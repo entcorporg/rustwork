@@ -39,16 +39,16 @@ enum {{ table_name }} {
 "#;
 
 pub const MIGRATION_CARGO_TOML: &str = r#"[package]
-name = "migration"
+name = "{{ project_name }}-migration"
 version = "0.1.0"
 edition = "2021"
 
 [lib]
-name = "migration"
+name = "{{ project_name }}_migration"
 path = "src/lib.rs"
 
 [[bin]]
-name = "migration"
+name = "{{ project_name }}-migration"
 path = "src/main.rs"
 
 [dependencies]

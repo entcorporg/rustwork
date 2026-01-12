@@ -1,0 +1,53 @@
+[
+  {
+    "id": "http",
+    "label": "HTTP & Handlers",
+    "description": "Mes conventions projet pour les handlers - ÉCRASE les conventions framework",
+    "scope": "project",
+    "children": [
+      {
+        "id": "handlers",
+        "label": "Handler Patterns",
+        "description": "Patterns personnalisés pour ce projet",
+        "scope": "project",
+        "criticality": "required",
+        "context": "all",
+        "ai_note": "Ce projet utilise une signature custom avec logging automatique.",
+        "rules": [
+          {
+            "id": "custom_handler",
+            "description": "Handler avec logging automatique intégré",
+            "examples": [
+              {
+                "description": "Pattern personnalisé pour ce projet",
+                "code": "async fn handler(\n    State(state): State<AppState>,\n    Extension(logger): Extension<Logger>\n) -> Result<ApiResponse<T>, AppError> {\n    logger.info(\"Request received\");\n    // logic\n    Ok(ApiResponse::success(data))\n}",
+                "language": "rust"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "custom_category",
+    "label": "Conventions Projet",
+    "description": "Catégorie spécifique à ce projet",
+    "scope": "project",
+    "criticality": "required",
+    "context": "all",
+    "ai_note": "Ces conventions sont propres à ce projet et ne viennent pas du framework.",
+    "rules": [
+      {
+        "id": "naming_convention",
+        "description": "Utiliser snake_case pour tous les identifiants",
+        "rationale": "Convention d'équipe pour ce projet"
+      },
+      {
+        "id": "module_structure",
+        "description": "Organiser les modules par feature, pas par type",
+        "rationale": "Facilite la compréhension du domaine métier"
+      }
+    ]
+  }
+]

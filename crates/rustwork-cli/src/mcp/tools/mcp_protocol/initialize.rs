@@ -1,4 +1,4 @@
-use crate::mcp::protocol::RpcError;
+use crate::mcp::common::protocol::RpcError;
 use serde_json::{json, Value};
 
 /// MCP initialize - Required by protocol

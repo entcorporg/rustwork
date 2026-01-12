@@ -1,5 +1,5 @@
-use crate::mcp::protocol::RpcError;
-use crate::mcp::state::LiveProjectState;
+use crate::mcp::common::protocol::RpcError;
+use crate::mcp::common::state::LiveProjectState;
 use serde::Deserialize;
 use serde_json::{json, Value};
 

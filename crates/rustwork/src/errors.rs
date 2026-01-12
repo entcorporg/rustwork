@@ -9,7 +9,7 @@ use thiserror::Error;
 
 pub type AppResult<T> = Result<T, AppError>;
 
-#[derive(Error, Debug)]
+#[derive(Error, Debug, PartialEq)]
 pub enum AppError {
     #[error("Not found: {0}")]
     NotFound(String),
@@ -139,7 +139,7 @@ mod tests {
     fn test_app_result_ok() {
         let result: AppResult<i32> = Ok(42);
         assert!(result.is_ok());
-        assert_eq!(result.unwrap(), 42);
+        assert_eq!(result, Ok(42));
     }
 
     #[test]
@@ -177,4 +177,3 @@ mod tests {
         assert!(debug_str.contains("BadRequest"));
     }
 }
-

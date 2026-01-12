@@ -8,7 +8,7 @@ mod templates;
 
 #[derive(Parser)]
 #[command(name = "rustwork")]
-#[command(about = "Rustwork CLI - Laravel-style Rust framework", long_about = None)]
+#[command(about = "Rustwork CLI - Microservices Backend Framework for AI-native applications", long_about = None)]
 #[command(version)]
 struct Cli {
     #[command(subcommand)]
@@ -17,27 +17,28 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Commands {
-    /// Create a new Rustwork project
+    /// Create a new Rustwork microservices workspace
+    ///
+    /// Usage: rustwork new auth,user,session
+    ///
+    /// Each argument (comma-separated) creates an independent service.
+    /// A shared/ library is always created for cross-service code.
     New {
-        /// Name of the project
-        name: String,
-        /// Project layout: monolith (default) or micro
-        #[arg(long, default_value = "monolith")]
-        layout: String,
-        /// Services to create (comma-separated, required if layout=micro)
-        #[arg(long, value_delimiter = ',')]
-        services: Option<Vec<String>>,
-        /// Create a shared library (for microservices layout)
+        /// Services to create (comma-separated)
+        /// Example: auth,user,session
+        #[arg(value_delimiter = ',', required = true)]
+        services: Vec<String>,
+        /// Skip creating the shared library
         #[arg(long)]
-        shared: bool,
+        no_shared: bool,
     },
-    /// Add a new service to an existing microservices project
+    /// Add a new service to an existing Rustwork workspace
     AddService {
         /// Name of the service to add
         name: String,
-        /// Path to the microservices project (default: current directory)
-        #[arg(long, default_value = ".")]
-        project: String,
+        /// Path to the workspace root (default: auto-detect from current directory)
+        #[arg(long)]
+        project: Option<String>,
     },
     /// Generate code from templates
     Make {
@@ -54,6 +55,9 @@ enum Commands {
         /// Enable MCP (Model Context Protocol) server
         #[arg(long)]
         mcp: bool,
+        /// Explicit path to the workspace root (optional)
+        #[arg(long)]
+        path: Option<String>,
     },
     /// Start MCP (Model Context Protocol) server for IDE integration
     Mcp {
@@ -74,6 +78,21 @@ enum Commands {
     Grpc {
         #[command(subcommand)]
         action: GrpcAction,
+    },
+    /// Manage Rustwork conventions
+    Conventions {
+        #[command(subcommand)]
+        action: ConventionsAction,
+    },
+}
+
+#[derive(Subcommand)]
+enum ConventionsAction {
+    /// Initialize project conventions file
+    Init {
+        /// Path to the project (default: current directory)
+        #[arg(long)]
+        project: Option<String>,
     },
 }
 
@@ -125,15 +144,13 @@ async fn main() -> Result<()> {
 
     match cli.command {
         Commands::New {
-            name,
-            layout,
             services,
-            shared,
+            no_shared,
         } => {
-            commands::new::execute(&name, &layout, services, shared).await?;
+            commands::new::execute(services, !no_shared).await?;
         }
         Commands::AddService { name, project } => {
-            commands::add_service::execute(&name, &project).await?;
+            commands::add_service::execute(&name, project.as_deref()).await?;
         }
         Commands::Make { generator } => match generator {
             Generator::Controller { name } => {
@@ -154,8 +171,9 @@ async fn main() -> Result<()> {
                 commands::db::status().await?;
             }
         },
-        Commands::Dev { mcp } => {
-            commands::dev::execute(mcp).await?;
+        Commands::Dev { mcp, path } => {
+            let explicit_path = path.as_deref().map(std::path::Path::new);
+            commands::dev::execute(mcp, explicit_path).await?;
         }
         Commands::Mcp {
             stdio,
@@ -177,6 +195,12 @@ async fn main() -> Result<()> {
         Commands::Grpc { action } => match action {
             GrpcAction::Build { project } => {
                 commands::grpc_build::execute(project).await?;
+            }
+        },
+        Commands::Conventions { action } => match action {
+            ConventionsAction::Init { project } => {
+                let project_path = project.map(std::path::PathBuf::from);
+                commands::conventions::conventions_init(project_path)?;
             }
         },
     }

@@ -116,7 +116,7 @@ pub async fn health_check() -> Json<HealthResponse> {
 
 pub const DEFAULT_TOML: &str = r#"[server]
 host = "127.0.0.1"
-port = 3000
+port = {{ service_port }}
 
 [database]
 url = "sqlite://data/db.sqlite?mode=rwc"
@@ -125,7 +125,7 @@ max_connections = 5
 
 pub const DEV_TOML: &str = r#"[server]
 host = "0.0.0.0"
-port = 3000
+port = {{ service_port }}
 
 [database]
 url = "sqlite://data/dev.db?mode=rwc"
@@ -148,12 +148,10 @@ name = "{{ project_name }}"
 version = "0.1.0"
 edition = "2021"
 
-[workspace]
-members = ["migration"]
-
 [dependencies]
-rustwork = { path = "../../../../rustwork/crates/rustwork" }
-migration = { path = "migration" }
+rustwork = { git = "https://github.com/entcorporg/rustwork.git", branch = "main" }
+shared = { path = "../shared" }
+{{ project_name }}-migration = { path = "migration" }
 axum = "0.7"
 tokio = { version = "1.40", features = ["full"] }
 tracing = "0.1"
@@ -205,4 +203,27 @@ cargo watch -x run
 ```bash
 cargo test
 ```
+"#;
+
+pub const SHARED_CARGO_TOML: &str = r#"[package]
+name = "{{ project_name }}"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+serde = { version = "1.0", features = ["derive"] }
+thiserror = "1.0"
+anyhow = "1.0"
+"#;
+
+pub const SHARED_LIB_RS: &str = r#"//! Shared library for cross-service code
+//!
+//! This crate contains types, utilities, and logic shared across services.
+
+pub mod types;
+pub mod utils;
+
+// Re-export common types
+pub use types::*;
+pub use utils::*;
 "#;

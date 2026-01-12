@@ -1,4 +1,89 @@
-use std::path::Path;
+use std::path::{Path, PathBuf};
+
+/// Représente un service Rustwork détecté
+#[derive(Debug, Clone)]
+pub struct RustworkService {
+    pub name: String,
+    pub path: PathBuf,
+}
+
+/// Vérifie si un dossier est un service Rustwork valide
+fn is_valid_rustwork_service(path: &Path) -> bool {
+    path.join(".rustwork/manifest.json").exists()
+        && path.join("Cargo.toml").exists()
+        && path.join("src/main.rs").exists()
+}
+
+/// Détecte tous les services Rustwork à partir d'un dossier workspace
+/// 
+/// Scanne dans l'ordre:
+/// 1. Backend/services/ (nouvelle structure)
+/// 2. services/ (structure legacy)
+/// 
+/// Ignore le dossier shared/
+pub fn detect_rustwork_services(workspace_root: &Path) -> anyhow::Result<Vec<RustworkService>> {
+    let mut services = Vec::new();
+
+    // Check Backend/services/ (new structure)
+    let backend_services = workspace_root.join("Backend/services");
+    if backend_services.exists() && backend_services.is_dir() {
+        scan_services_directory(&backend_services, &mut services)?;
+    }
+
+    // Check services/ (legacy structure) if no services found yet
+    if services.is_empty() {
+        let legacy_services = workspace_root.join("services");
+        if legacy_services.exists() && legacy_services.is_dir() {
+            scan_services_directory(&legacy_services, &mut services)?;
+        }
+    }
+
+    // If still empty, try scanning directly (for backward compatibility)
+    if services.is_empty() {
+        if is_valid_rustwork_service(workspace_root) {
+            let name = workspace_root
+                .file_name()
+                .and_then(|n| n.to_str())
+                .unwrap_or("service")
+                .to_string();
+            services.push(RustworkService {
+                name,
+                path: workspace_root.to_path_buf(),
+            });
+        }
+    }
+
+    Ok(services)
+}
+
+/// Scanne un dossier services/ pour trouver les services Rustwork
+fn scan_services_directory(
+    services_dir: &Path,
+    services: &mut Vec<RustworkService>,
+) -> anyhow::Result<()> {
+    if let Ok(entries) = std::fs::read_dir(services_dir) {
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path.is_dir() {
+                // Skip shared library and hidden directories
+                if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
+                    if name == "shared" || name.starts_with('.') || name == "target" {
+                        continue;
+                    }
+                    
+                    if is_valid_rustwork_service(&path) {
+                        services.push(RustworkService {
+                            name: name.to_string(),
+                            path,
+                        });
+                    }
+                }
+            }
+        }
+    }
+
+    Ok(())
+}
 
 /// Convertit PascalCase en snake_case
 pub fn to_snake_case(s: &str) -> String {
@@ -25,41 +110,6 @@ pub fn is_rustwork_project() -> bool {
     // Simple check: le fichier existe
     // On pourrait parser le Cargo.toml pour vérifier la dépendance rustwork
     true
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum ProjectLayout {
-    Monolith,
-    Microservices,
-}
-
-/// Détecte le layout du projet (monolithe ou micro-services)
-///
-/// Un projet est considéré comme micro-services s'il possède :
-/// - Un dossier services/ à la racine
-/// - Au moins un service avec un .rustwork/manifest.json
-pub fn detect_project_layout(project_root: &Path) -> ProjectLayout {
-    let services_dir = project_root.join("services");
-
-    // Vérifier la présence du dossier services/
-    if !services_dir.exists() || !services_dir.is_dir() {
-        return ProjectLayout::Monolith;
-    }
-
-    // Vérifier qu'il y a au moins un service avec manifest.json
-    if let Ok(entries) = std::fs::read_dir(&services_dir) {
-        for entry in entries.flatten() {
-            let service_path = entry.path();
-            if service_path.is_dir() {
-                let manifest_path = service_path.join(".rustwork/manifest.json");
-                if manifest_path.exists() {
-                    return ProjectLayout::Microservices;
-                }
-            }
-        }
-    }
-
-    ProjectLayout::Monolith
 }
 
 /// Crée un fichier si le dossier parent n'existe pas
@@ -104,43 +154,6 @@ mod tests {
         assert_eq!(to_snake_case(""), "");
     }
 
-    #[test]
-    fn test_project_layout_enum() {
-        assert_ne!(ProjectLayout::Monolith, ProjectLayout::Microservices);
-        assert_eq!(ProjectLayout::Monolith, ProjectLayout::Monolith);
-    }
-
-    #[test]
-    fn test_detect_project_layout_no_services_dir() {
-        let temp_dir = std::env::temp_dir().join("test_layout_1");
-        let _ = std::fs::create_dir_all(&temp_dir);
-        let layout = detect_project_layout(&temp_dir);
-        assert_eq!(layout, ProjectLayout::Monolith);
-        let _ = std::fs::remove_dir_all(&temp_dir);
-    }
-
-    #[test]
-    fn test_detect_project_layout_empty_services_dir() {
-        let temp_dir = std::env::temp_dir().join("test_layout_2");
-        let services_dir = temp_dir.join("services");
-        let _ = std::fs::create_dir_all(&services_dir);
-        let layout = detect_project_layout(&temp_dir);
-        assert_eq!(layout, ProjectLayout::Monolith);
-        let _ = std::fs::remove_dir_all(&temp_dir);
-    }
-
-    #[test]
-    fn test_detect_project_layout_with_manifest() {
-        let temp_dir = std::env::temp_dir().join("test_layout_3");
-        let service_dir = temp_dir.join("services/api");
-        let rustwork_dir = service_dir.join(".rustwork");
-        let _ = std::fs::create_dir_all(&rustwork_dir);
-        let _ = std::fs::write(rustwork_dir.join("manifest.json"), "{}");
-        let layout = detect_project_layout(&temp_dir);
-        assert_eq!(layout, ProjectLayout::Microservices);
-        let _ = std::fs::remove_dir_all(&temp_dir);
-    }
-
     #[tokio::test]
     async fn test_ensure_parent_dir_creates_nested() {
         let temp_dir = std::env::temp_dir().join("test_ensure_parent");
@@ -155,19 +168,5 @@ mod tests {
         let path = Path::new("file.txt");
         let result = ensure_parent_dir(path).await;
         assert!(result.is_ok());
-    }
-
-    #[test]
-    fn test_project_layout_debug() {
-        let layout = ProjectLayout::Monolith;
-        let debug_str = format!("{:?}", layout);
-        assert!(debug_str.contains("Monolith"));
-    }
-
-    #[test]
-    fn test_project_layout_clone() {
-        let layout1 = ProjectLayout::Microservices;
-        let layout2 = layout1;
-        assert_eq!(layout1, layout2);
     }
 }

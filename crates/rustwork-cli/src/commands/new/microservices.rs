@@ -2,31 +2,45 @@ use anyhow::Result;
 use std::path::Path;
 use tokio::fs;
 
-use crate::templates::{create_micro_env, create_micro_shared_env, TemplateContext};
+use crate::templates::{create_micro_env, TemplateContext};
 
-/// Crée un projet microservices
-pub async fn create_microservices_project(
-    project_name: &str,
+/// Crée un workspace micro-services Rustwork
+/// 
+/// Structure générée:
+/// ```
+/// ./
+/// ├── .vscode/
+/// │   ├── settings.json
+/// │   └── mcp.example.json
+/// ├── Backend/
+/// │   ├── services/
+/// │   │   ├── <service1>/
+/// │   │   ├── <service2>/
+/// │   │   └── shared/
+/// │   └── README.md
+/// ```
+pub async fn create_microservices_workspace(
     services: Vec<String>,
-    shared: bool,
+    create_shared: bool,
 ) -> Result<()> {
-    let root_path = Path::new(project_name);
+    let root_path = Path::new(".");
 
-    if root_path.exists() {
-        anyhow::bail!("Directory '{}' already exists", project_name);
+    // Check if Backend already exists
+    let backend_path = root_path.join("Backend");
+    if backend_path.exists() {
+        anyhow::bail!(
+            "Backend/ directory already exists in current directory.\n\
+             Please run this command from an empty directory or remove the existing Backend folder."
+        );
     }
 
-    println!("🚀 Creating microservices project: {}", project_name);
-    println!(
-        "   Architecture: {}",
-        if shared { "micro_shared" } else { "micro" }
-    );
+    println!("🚀 Creating Rustwork microservices workspace");
     println!("   Services: {}", services.join(", "));
+    if create_shared {
+        println!("   Shared library: enabled");
+    }
 
-    // Create root directory
-    fs::create_dir_all(root_path).await?;
-
-    // Create .vscode at root level
+    // Create .vscode at workspace root
     let vscode_dir = root_path.join(".vscode");
     fs::create_dir_all(&vscode_dir).await?;
 
@@ -36,22 +50,28 @@ pub async fn create_microservices_project(
         .to_string_lossy()
         .to_string();
 
+    let workspace_name = std::env::current_dir()
+        .ok()
+        .and_then(|p| p.file_name().map(|n| n.to_string_lossy().to_string()))
+        .unwrap_or_else(|| "rustwork-workspace".to_string());
+
     let mut context = TemplateContext::new();
-    context.insert("project_name".to_string(), serde_json::json!(project_name));
+    context.insert("project_name".to_string(), serde_json::json!(workspace_name));
     context.insert(
         "project_path".to_string(),
         serde_json::json!(absolute_root_path),
     );
+    context.insert(
+        "services".to_string(), 
+        serde_json::json!(services),
+    );
 
-    // CRITICAL: Choose the RIGHT template environment based on architecture
-    let env = if shared {
-        create_micro_shared_env()
-    } else {
-        create_micro_env()
-    };
+    // Use micro-services template environment
+    let env = create_micro_env();
 
+    // Create VS Code configuration
     super::utils::create_file(
-        &vscode_dir.join("mcp.json"),
+        &vscode_dir.join("mcp.example.json"),
         &env,
         "vscode_mcp.json",
         &context,
@@ -66,65 +86,109 @@ pub async fn create_microservices_project(
     )
     .await?;
 
-    // Create services directory
-    let services_dir = root_path.join("services");
+    // Create Backend directory structure
+    fs::create_dir_all(&backend_path).await?;
+
+    let services_dir = backend_path.join("services");
     fs::create_dir_all(&services_dir).await?;
 
-    // Create each service
-    for service_name in &services {
-        println!("   Creating service: {}", service_name);
+    // Create each service with unique port
+    for (index, service_name) in services.iter().enumerate() {
+        println!("   📦 Creating service: {}", service_name);
         let service_path = services_dir.join(service_name);
-        create_service_in_project(&service_path, service_name, shared, &env).await?;
+        let service_port = 3001 + index as u16;
+        create_service_in_project(&service_path, service_name, service_port, &env).await?;
     }
 
-    // Create shared library if requested
-    if shared {
-        println!("   Creating shared library");
-        let shared_path = root_path.join("shared");
-        fs::create_dir_all(&shared_path).await?;
-        create_shared_library(&shared_path, project_name, &env).await?;
+    // Always create shared library inside services/
+    if create_shared {
+        println!("   📚 Creating shared library");
+        let shared_path = services_dir.join("shared");
+        create_shared_library(&shared_path, &workspace_name, &env).await?;
     }
 
-    // Create root README
-    let readme_content = format!(
-        r#"# {}
+    // Create Backend Cargo.toml workspace
+    let mut workspace_members: Vec<String> = services
+        .iter()
+        .flat_map(|s| vec![
+            format!("services/{}", s),
+            format!("services/{}/migration", s),
+        ])
+        .collect();
+    
+    if create_shared {
+        workspace_members.push("services/shared".to_string());
+    }
 
-Microservices architecture with Rustwork.
+    let backend_cargo_toml = format!(
+        r#"[workspace]
+resolver = "2"
+members = [
+{}
+]
+"#,
+        workspace_members
+            .iter()
+            .map(|m| format!("    \"{}\",", m))
+            .collect::<Vec<_>>()
+            .join("\n")
+    );
+    fs::write(backend_path.join("Cargo.toml"), backend_cargo_toml).await?;
+
+    // Create Backend README
+    let backend_readme = format!(
+        r#"# Backend
+
+Rustwork Microservices Backend.
 
 ## Services
 
 {}
 
-## Getting Started
+## Development
 
-Each service can be run independently:
+Start all services:
+```bash
+rustwork dev
+```
 
+Start a specific service:
 ```bash
 cd services/<service_name>
 cargo run
 ```
 
-Or use the MCP integration in VS Code with GitHub Copilot.
-
 ## Structure
 
-- `services/` - Individual microservices
+```
+Backend/
+└── services/
 {}
+```
+
+## Adding a New Service
+
+```bash
+rustwork add-service <name>
+```
 "#,
-        project_name,
         services
             .iter()
-            .map(|s| format!("- `services/{}` - {} service", s, s))
+            .map(|s| format!("- **{}** - {} service", s, s))
             .collect::<Vec<_>>()
             .join("\n"),
-        if shared {
-            "- `shared/` - Shared library across services\n"
-        } else {
-            ""
-        }
+        {
+            let shared_str = "shared".to_string();
+            services
+                .iter()
+                .chain(if create_shared { Some(&shared_str) } else { None })
+                .map(|s| format!("    ├── {}/", s))
+                .collect::<Vec<_>>()
+                .join("\n")
+        },
     );
 
-    fs::write(root_path.join("README.md"), readme_content).await?;
+    fs::write(backend_path.join("README.md"), backend_readme).await?;
 
     // Create root .gitignore
     fs::write(
@@ -144,7 +208,6 @@ Cargo.lock
 **/data/*.db-wal
 
 # IDE
-.vscode/
 .idea/
 *.swp
 *.swo
@@ -152,31 +215,111 @@ Cargo.lock
 # Rustwork
 .rustwork/
 **/.rustwork/
+
+# Do NOT ignore .vscode - it contains MCP config
+!.vscode/
 "#,
     )
     .await?;
 
-    println!("✅ Microservices project created successfully!");
-    println!("\nNext steps:");
-    println!("  cd {}", project_name);
-    println!("  # Each service is ready to run:");
+    // Create root README
+    let root_readme = format!(
+        r#"# {}
+
+A Rustwork microservices workspace.
+
+## Quick Start
+
+```bash
+# Start all services with hot-reload
+rustwork dev
+
+# Start MCP server for IDE integration
+rustwork dev --mcp
+```
+
+## Project Structure
+
+```
+./
+├── .vscode/          # VS Code + MCP configuration
+├── Backend/
+│   ├── services/     # All microservices
+{}│   └── README.md
+└── README.md
+```
+
+## Services
+
+{}
+
+## Tools
+
+- `rustwork dev` - Start all services with hot-reload
+- `rustwork dev --mcp` - Include MCP server for AI assistance
+- `rustwork add-service <name>` - Add a new service
+- `rustwork grpc build` - Build gRPC services from .rwk files
+
+## VS Code Integration
+
+Copy `.vscode/mcp.example.json` to `.vscode/mcp.json` to enable MCP integration with GitHub Copilot.
+
+---
+Built with [Rustwork](https://github.com/rustwork) 🦀
+"#,
+        workspace_name,
+        {
+            let shared_str = "shared".to_string();
+            services
+                .iter()
+                .chain(if create_shared { Some(&shared_str) } else { None })
+                .map(|s| format!("│   │   ├── {}/\n", s))
+                .collect::<String>()
+        },
+        services
+            .iter()
+            .map(|s| format!("- `Backend/services/{}` - {} service", s, s))
+            .collect::<Vec<_>>()
+            .join("\n"),
+    );
+
+    fs::write(root_path.join("README.md"), root_readme).await?;
+
+    println!();
+    println!("✅ Rustwork workspace created successfully!");
+    println!();
+    println!("📁 Structure:");
+    println!("   ./");
+    println!("   ├── .vscode/");
+    println!("   ├── Backend/");
+    println!("   │   └── services/");
     for service in &services {
-        println!("  cd services/{} && cargo run", service);
+        println!("   │       ├── {}/", service);
     }
-    println!("\n🔮 VS Code MCP integration ready at root level!");
+    if create_shared {
+        println!("   │       └── shared/");
+    }
+    println!("   └── README.md");
+    println!();
+    println!("🚀 Next steps:");
+    println!("   rustwork dev          # Start all services");
+    println!("   rustwork dev --mcp    # Start with MCP server");
+    println!();
+    println!("🔮 VS Code MCP integration:");
+    println!("   cp .vscode/mcp.example.json .vscode/mcp.json");
 
     Ok(())
 }
 
 async fn create_shared_library(
     shared_path: &Path,
-    project_name: &str,
+    workspace_name: &str,
     env: &minijinja::Environment<'_>,
 ) -> Result<()> {
     fs::create_dir_all(shared_path).await?;
 
     let mut context = TemplateContext::new();
-    context.insert("project_name".to_string(), serde_json::json!(project_name));
+    context.insert("project_name".to_string(), serde_json::json!("shared"));
 
     super::utils::create_file(
         &shared_path.join("Cargo.toml"),
@@ -195,14 +338,28 @@ async fn create_shared_library(
     fs::create_dir_all(&src_dir.join("types")).await?;
     fs::write(
         src_dir.join("types").join("mod.rs"),
-        "// Shared types across services\n",
+        "//! Shared types across services\n\n// Add your shared types here\n",
     )
     .await?;
 
     fs::create_dir_all(&src_dir.join("utils")).await?;
     fs::write(
         src_dir.join("utils").join("mod.rs"),
-        "// Shared utilities across services\n",
+        "//! Shared utilities across services\n\n// Add your shared utilities here\n",
+    )
+    .await?;
+
+    // Create .rustwork manifest for shared lib
+    let rustwork_dir = shared_path.join(".rustwork");
+    fs::create_dir_all(&rustwork_dir).await?;
+    let manifest = serde_json::json!({
+        "version": "0.1.0",
+        "type": "shared_library",
+        "exports": []
+    });
+    fs::write(
+        rustwork_dir.join("manifest.json"),
+        serde_json::to_string_pretty(&manifest)?,
     )
     .await?;
 
@@ -213,7 +370,7 @@ async fn create_shared_library(
 pub async fn create_service_in_project(
     service_path: &Path,
     service_name: &str,
-    _has_shared: bool,
+    service_port: u16,
     env: &minijinja::Environment<'_>,
 ) -> Result<()> {
     if service_path.exists() {
@@ -223,11 +380,12 @@ pub async fn create_service_in_project(
     // Create service directory
     fs::create_dir_all(service_path).await?;
 
-    // Setup template context - SIMPLE AND EXPLICIT
+    // Setup template context with port
     let mut context = TemplateContext::new();
     context.insert("project_name".to_string(), serde_json::json!(service_name));
+    context.insert("service_port".to_string(), serde_json::json!(service_port));
 
-    // Create Cargo.toml using template from correct architecture
+    // Create Cargo.toml
     super::utils::create_file(
         &service_path.join("Cargo.toml"),
         env,
@@ -334,6 +492,22 @@ pub async fn create_service_in_project(
     let data_dir = service_path.join("data");
     fs::create_dir_all(&data_dir).await?;
     fs::write(data_dir.join(".gitkeep"), "").await?;
+
+    // Create .rustwork directory for metadata
+    let rustwork_dir = service_path.join(".rustwork");
+    fs::create_dir_all(&rustwork_dir).await?;
+    let manifest = serde_json::json!({
+        "version": "0.1.0",
+        "type": "service",
+        "routes": [],
+        "models": [],
+        "controllers": ["health"],
+    });
+    fs::write(
+        rustwork_dir.join("manifest.json"),
+        serde_json::to_string_pretty(&manifest)?,
+    )
+    .await?;
 
     // Create service README
     super::utils::create_file(&service_path.join("README.md"), env, "readme.md", &context).await?;

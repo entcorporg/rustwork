@@ -4,7 +4,7 @@ use std::path::Path;
 use tokio::fs;
 
 use crate::commands::utils::{ensure_parent_dir, is_rustwork_project, to_snake_case};
-use crate::templates::{create_monolith_env, TemplateContext};
+use crate::templates::{create_micro_env, TemplateContext};
 
 /// Génère un modèle
 pub async fn execute(name: &str) -> Result<()> {
@@ -22,7 +22,7 @@ pub async fn execute(name: &str) -> Result<()> {
     context.insert("snake_name".to_string(), serde_json::json!(snake_name));
     context.insert("table_name".to_string(), serde_json::json!(table_name));
 
-    let env = create_monolith_env();
+    let env = create_micro_env();
 
     // Create model file
     let model_path = Path::new("src/models").join(format!("{}.rs", snake_name));
@@ -92,7 +92,7 @@ async fn create_migration(
         .join("src")
         .join(format!("{}.rs", migration_name));
 
-    let env = create_monolith_env();
+    let env = create_micro_env();
     let template = env.get_template("migration.rs")?;
     let content = template.render(context)?;
 

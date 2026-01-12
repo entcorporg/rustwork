@@ -8,6 +8,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Hierarchical conventions system** for `rustwork_get_conventions` MCP tool
+  - Navigable convention tree (categories → subcategories → atomic rules)
+  - Project conventions override framework conventions (absolute priority)
+  - Three exploration modes: root categories, category view, precise path
+  - Conventions stored in JSON files (editable without recompilation)
+  - Framework conventions: `crates/rustwork-cli/data/conventions/framework.json`
+  - Project conventions: `.rustwork/conventions.json` (user-editable)
+  - New CLI command: `rustwork conventions init` to generate project conventions template
+  - Complete test suite for convention loading and priority system
+  - **Comprehensive gRPC section** in framework conventions
+    - 7 subcategories: advantages, limitations, syntax, supported_types, workflow, monorepo, best_practices
+    - 30 detailed rules with examples
+    - 14 code examples covering all aspects of .rwk DSL
+    - Complete type mapping table (string, int, bool, uuid, datetime, optional, list)
+    - Step-by-step workflow (create .rwk → generate → compile → implement → serve)
+    - Current limitations documented (no streaming, enums, oneof, maps)
+  - Documentation: `docs/MCP_CONVENTIONS.md`, `docs/CONVENTIONS_GRPC_AJOUT.md`
+- **Workspace-aware `rustwork dev` command** for native micro-services support
+  - Automatically detects all Rustwork services from any parent directory
+  - Launches multiple services in parallel with `cargo-watch`
+  - Prefixes logs with `[service-name]` for clarity
+  - Single MCP server observing entire workspace (when `--mcp` enabled)
+  - Backward compatible: single-service behavior preserved
+  - Strict validation: requires `.rustwork/manifest.json`, `Cargo.toml`, and `src/main.rs`
+  - Robust error handling: continues if a service fails to start
+  - Documentation: `docs/DEV_WORKSPACE.md`, `docs/DEV_WORKSPACE_TEST.md`
+  - Test script: `test_dev_workspace.sh`
 - **gRPC native support** with DSL `.rwk` (Rustwork Contract)
   - Parser DSL pour définir services, RPCs et messages
   - Génération automatique de fichiers `.proto` (dans `target/rustwork/grpc/`)

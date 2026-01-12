@@ -3,7 +3,7 @@ use std::path::Path;
 use tokio::fs;
 
 use crate::commands::utils::{ensure_parent_dir, is_rustwork_project, to_snake_case};
-use crate::templates::{create_monolith_env, TemplateContext};
+use crate::templates::{create_micro_env, TemplateContext};
 
 /// Génère un contrôleur
 pub async fn execute(name: &str) -> Result<()> {
@@ -21,7 +21,7 @@ pub async fn execute(name: &str) -> Result<()> {
     context.insert("snake_name".to_string(), serde_json::json!(snake_name));
     context.insert("plural_name".to_string(), serde_json::json!(plural_name));
 
-    let env = create_monolith_env();
+    let env = create_micro_env();
 
     // Create controller file
     let controller_path = Path::new("src/controllers").join(format!("{}.rs", snake_name));

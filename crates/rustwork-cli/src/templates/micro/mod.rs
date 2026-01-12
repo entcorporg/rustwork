@@ -5,11 +5,13 @@ pub mod vscode;
 
 use minijinja::Environment;
 
-/// Crée un environnement de templates pour l'architecture MICRO (microservices sans shared)
+/// Crée un environnement de templates pour l'architecture microservices
+/// 
+/// Rustwork est 100% microservices - pas de support monolithe.
 pub fn create_micro_env() -> Environment<'static> {
     let mut env = Environment::new();
 
-    // Project templates - MICRO SPECIFIC
+    // Project templates
     env.add_template("main.rs", project::MAIN_RS).unwrap();
     env.add_template("app.rs", project::APP_RS).unwrap();
     env.add_template("routes.rs", project::ROUTES_RS).unwrap();
@@ -23,6 +25,12 @@ pub fn create_micro_env() -> Environment<'static> {
     env.add_template("Cargo.toml", project::CARGO_TOML).unwrap();
     env.add_template("gitignore", project::GITIGNORE).unwrap();
     env.add_template("readme.md", project::README_MD).unwrap();
+    
+    // Shared library templates
+    env.add_template("shared_cargo.toml", project::SHARED_CARGO_TOML)
+        .unwrap();
+    env.add_template("shared_lib.rs", project::SHARED_LIB_RS)
+        .unwrap();
 
     // Component templates
     env.add_template("controller.rs", components::CONTROLLER_RS)
@@ -43,7 +51,7 @@ pub fn create_micro_env() -> Environment<'static> {
     env.add_template("migration_main.rs", migration::MIGRATION_MAIN_RS)
         .unwrap();
 
-    // VSCode templates - MULTI-SERVICE SPECIFIC
+    // VSCode templates for workspace
     env.add_template("vscode_mcp.json", vscode::VSCODE_MCP_JSON)
         .unwrap();
     env.add_template("vscode_settings.json", vscode::VSCODE_SETTINGS_JSON)

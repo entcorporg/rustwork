@@ -3,66 +3,101 @@ use std::path::Path;
 use tokio::fs;
 
 use super::new::create_service_in_project;
-use crate::templates::{create_micro_env, create_micro_shared_env};
+use crate::mcp::common::workspace_root::WorkspaceRoot;
+use crate::templates::create_micro_env;
 
-pub async fn execute(service_name: &str, project_path: &str) -> Result<()> {
-    let project_path = Path::new(project_path);
-
-    // Vérifier que le projet existe
-    if !project_path.exists() {
-        anyhow::bail!(
-            "Project directory '{}' does not exist",
-            project_path.display()
-        );
-    }
-
-    // Vérifier que c'est un projet microservices (présence du dossier services/)
-    let services_dir = project_path.join("services");
-    if !services_dir.exists() || !services_dir.is_dir() {
-        anyhow::bail!(
-            "This is not a microservices project. The 'services/' directory was not found.\n\
-            To add a service, the project must have been created with:\n\
-            rustwork new <name> --layout micro --services <service1>,<service2>..."
-        );
-    }
-
-    // Vérifier que le service n'existe pas déjà
-    let service_path = services_dir.join(service_name);
-    if service_path.exists() {
-        anyhow::bail!("Service '{}' already exists in this project", service_name);
-    }
-
-    println!("🔧 Adding service '{}' to the project...", service_name);
-
-    // Détecter si le projet utilise shared/
-    let has_shared = project_path.join("shared").exists();
-
-    // Choisir le bon environnement de templates en fonction de l'architecture
-    let env = if has_shared {
-        create_micro_shared_env()
+pub async fn execute(service_name: &str, project_path: Option<&str>) -> Result<()> {
+    // Detect workspace root
+    let current_dir = std::env::current_dir()?;
+    let workspace_root = if let Some(path) = project_path {
+        WorkspaceRoot::detect_with_explicit(&current_dir, Some(Path::new(path)))?
     } else {
-        create_micro_env()
+        WorkspaceRoot::detect(&current_dir)?
     };
 
-    // Créer le service en réutilisant la logique existante
-    create_service_in_project(&service_path, service_name, has_shared, &env).await?;
+    // Find the Backend/services directory
+    let backend_services = workspace_root.path().join("Backend/services");
+    let legacy_services = workspace_root.path().join("services");
+    
+    let services_dir = if backend_services.exists() {
+        backend_services
+    } else if legacy_services.exists() {
+        legacy_services
+    } else {
+        anyhow::bail!(
+            "This is not a valid Rustwork workspace.\n\
+             Expected structure: Backend/services/ or services/\n\
+             \n\
+             To create a new workspace:\n\
+             rustwork new auth,user,session"
+        );
+    };
 
-    // Mettre à jour le README si présent
-    update_readme(project_path, service_name).await?;
+    // Validate service name
+    let service_name = service_name.trim().to_lowercase();
+    if service_name.is_empty() {
+        anyhow::bail!("Service name cannot be empty");
+    }
+    
+    if service_name == "shared" {
+        anyhow::bail!("'shared' is a reserved name for the shared library");
+    }
+    
+    if !service_name.chars().next().map(|c| c.is_ascii_lowercase()).unwrap_or(false) {
+        anyhow::bail!("Service name must start with a lowercase letter");
+    }
+    
+    if !service_name.chars().all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '_') {
+        anyhow::bail!("Service name must contain only lowercase letters, digits, and underscores");
+    }
+
+    // Check if service already exists
+    let service_path = services_dir.join(&service_name);
+    if service_path.exists() {
+        anyhow::bail!("Service '{}' already exists in this workspace", service_name);
+    }
+
+    println!("🔧 Adding service '{}' to the workspace...", service_name);
+    println!("   Workspace: {}", workspace_root.path().display());
+
+    // Use micro-services template environment
+    let env = create_micro_env();
+
+    // Count existing services to determine port
+    let existing_services = count_existing_services(&services_dir).await?;
+    let service_port = 3001 + existing_services as u16;
+
+    // Create the service
+    create_service_in_project(&service_path, &service_name, service_port, &env).await?;
+
+    // Update Backend/Cargo.toml workspace
+    let backend_cargo_toml = workspace_root.path().join("Backend/Cargo.toml");
+    if backend_cargo_toml.exists() {
+        update_workspace_cargo_toml(&backend_cargo_toml, &service_name).await?;
+    }
+
+    // Update Backend README if present
+    let backend_readme = workspace_root.path().join("Backend/README.md");
+    if backend_readme.exists() {
+        update_readme(&backend_readme, &service_name).await?;
+    }
 
     println!("✅ Service '{}' added successfully!", service_name);
-    println!("\nNext steps:");
-    println!("  cd services/{}", service_name);
-    println!("  cp .env.example .env");
-    println!("  cargo run");
-    println!("\nThe MCP server will automatically detect the new service.");
+    println!();
+    println!("📁 Location: {}", service_path.display());
+    println!();
+    println!("🚀 Next steps:");
+    println!("   cd Backend/services/{}", service_name);
+    println!("   cp .env.example .env");
+    println!("   cargo run");
+    println!();
+    println!("💡 Or start all services:");
+    println!("   rustwork dev");
 
     Ok(())
 }
 
-async fn update_readme(project_path: &Path, service_name: &str) -> Result<()> {
-    let readme_path = project_path.join("README.md");
-
+async fn update_readme(readme_path: &Path, service_name: &str) -> Result<()> {
     if !readme_path.exists() {
         return Ok(());
     }
@@ -125,5 +160,44 @@ async fn update_readme(project_path: &Path, service_name: &str) -> Result<()> {
         println!("   Updated README.md");
     }
 
+    Ok(())
+}
+
+/// Count existing services in the services directory (excluding 'shared')
+async fn count_existing_services(services_dir: &Path) -> Result<usize> {
+    let mut count = 0;
+    let mut entries = fs::read_dir(services_dir).await?;
+    
+    while let Some(entry) = entries.next_entry().await? {
+        let path = entry.path();
+        if path.is_dir() {
+            if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
+                // Skip 'shared' and hidden directories
+                if name != "shared" && !name.starts_with('.') {
+                    count += 1;
+                }
+            }
+        }
+    }
+    
+    Ok(count)
+}
+
+/// Update Backend/Cargo.toml to include the new service in workspace members
+async fn update_workspace_cargo_toml(cargo_toml_path: &Path, service_name: &str) -> Result<()> {
+    let content = fs::read_to_string(&cargo_toml_path).await?;
+    
+    // Find the members array and add the new service
+    let new_member = format!("    \"services/{}\",", service_name);
+    let new_migration = format!("    \"services/{}/migration\",", service_name);
+    
+    // Find where to insert (before the closing bracket of members)
+    if let Some(members_end) = content.find("]\n") {
+        let (before, after) = content.split_at(members_end);
+        let new_content = format!("{}\n{}\n{}{}", before, new_member, new_migration, after);
+        fs::write(&cargo_toml_path, new_content).await?;
+        println!("   Updated Backend/Cargo.toml");
+    }
+    
     Ok(())
 }

@@ -1,7 +1,6 @@
-/// Commande de création de projet
+/// Commande de création de workspace micro-services
 mod execute;
 mod microservices;
-mod monolith;
 mod utils;
 
 pub use execute::execute;

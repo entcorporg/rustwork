@@ -179,9 +179,57 @@ cargo run
 
 # Mode développement avec hot-reload
 rustwork dev
+
+# Mode développement avec MCP (Model Context Protocol)
+rustwork dev --mcp
 ```
 
 Le serveur démarre sur `http://localhost:3000` par défaut.
+
+#### 🏗️ Mode Workspace Multi-Services
+
+`rustwork dev` supporte nativement les architectures **micro-services** ! 
+
+Lancez la commande depuis **n'importe quel dossier parent** et tous les services Rustwork valides seront automatiquement détectés et lancés en parallèle.
+
+**Exemple :**
+```bash
+# Structure
+backend/
+└── services/
+    ├── auth/
+    ├── user/
+    └── blog/
+
+# Lancer depuis n'importe où
+cd backend/
+rustwork dev
+
+# Résultat:
+# 🔧 Starting Rustwork development workspace...
+# 🔍 Detected 3 Rustwork service(s):
+#   - auth (services/auth)
+#   - user (services/user)
+#   - blog (services/blog)
+# 
+# ▶ Starting auth...
+# ▶ Starting user...
+# ▶ Starting blog...
+# 
+# [auth] Compiling auth v0.1.0...
+# [user] Compiling user v0.1.0...
+# [blog] Compiling blog v0.1.0...
+```
+
+**Fonctionnalités :**
+- ✅ Détection automatique depuis n'importe quel dossier parent
+- ✅ Lancement parallèle de tous les services
+- ✅ Logs préfixés par service : `[service-name] log...`
+- ✅ Hot-reload indépendant par service
+- ✅ MCP centralisé observant tout le workspace
+- ✅ Mode single-service préservé pour compatibilité
+
+📚 **Guide complet :** [docs/DEV_WORKSPACE.md](docs/DEV_WORKSPACE.md)
 
 ### Tester la route health
 

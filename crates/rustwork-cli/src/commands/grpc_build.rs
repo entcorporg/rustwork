@@ -1,5 +1,6 @@
-use super::utils::{detect_project_layout, to_snake_case, ProjectLayout};
+use super::utils::{detect_rustwork_services, to_snake_case};
 use crate::grpc;
+use crate::mcp::common::workspace_root::WorkspaceRoot;
 /// Commande `rustwork grpc build`
 use anyhow::{Context, Result};
 use std::fs;
@@ -7,27 +8,29 @@ use std::path::{Path, PathBuf};
 
 /// Execute la commande grpc build
 pub async fn execute(project_path: Option<String>) -> Result<()> {
-    let project_root = if let Some(path) = project_path {
-        PathBuf::from(path)
+    let current_dir = std::env::current_dir()?;
+
+    // Step 1: Detect workspace root
+    let workspace_root = if let Some(ref path) = project_path {
+        let explicit = PathBuf::from(path);
+        WorkspaceRoot::detect_with_explicit(&current_dir, Some(&explicit))?
     } else {
-        std::env::current_dir()?
+        WorkspaceRoot::detect(&current_dir)?
     };
 
-    if !project_root.exists() {
-        anyhow::bail!(
-            "Le chemin du projet n'existe pas: {}",
-            project_root.display()
-        );
-    }
+    let project_root = workspace_root.path().to_path_buf();
 
-    // GARDE-FOU CRITIQUE : gRPC UNIQUEMENT en mode micro-services
-    let layout = detect_project_layout(&project_root);
-    if layout != ProjectLayout::Microservices {
+    // Step 2: Detect all Rustwork services
+    let services = detect_rustwork_services(&project_root)?;
+
+    // GARDE-FOU CRITIQUE : gRPC UNIQUEMENT en mode micro-services (≥ 2 services)
+    if services.len() < 2 {
         anyhow::bail!(
             "❌ gRPC is only supported in micro-service layout.\n\
-            This project is a monolith.\n\n\
+            Detected {} service(s). At least 2 services are required.\n\n\
             To use gRPC, create a micro-services project with:\n\
-            rustwork new <name> --layout micro --services <service1>,<service2>"
+            rustwork new <name> --layout micro --services <service1>,<service2>",
+            services.len()
         );
     }
 

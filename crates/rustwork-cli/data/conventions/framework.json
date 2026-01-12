@@ -1,0 +1,581 @@
+[
+  {
+    "id": "http",
+    "label": "HTTP & Handlers",
+    "description": "Conventions pour les handlers HTTP, les routes et la gestion des requêtes",
+    "scope": "framework",
+    "children": [
+      {
+        "id": "handlers",
+        "label": "Handler Patterns",
+        "description": "Signatures et patterns recommandés pour les handlers Axum",
+        "scope": "framework",
+        "criticality": "required",
+        "context": "all",
+        "ai_note": "Utiliser ces patterns exactement. Toujours retourner Result<ApiResponse<T>, AppError>.",
+        "rules": [
+          {
+            "id": "basic_handler",
+            "description": "Handler basique avec State uniquement",
+            "examples": [
+              {
+                "description": "Handler simple qui accède au state",
+                "code": "async fn handler(State(state): State<AppState>) -> Result<ApiResponse<T>, AppError> {\n    // logic\n    Ok(ApiResponse::success(data))\n}",
+                "language": "rust"
+              }
+            ]
+          },
+          {
+            "id": "json_handler",
+            "description": "Handler acceptant un payload JSON",
+            "examples": [
+              {
+                "description": "Handler avec extraction JSON",
+                "code": "async fn handler(\n    State(state): State<AppState>,\n    Json(payload): Json<CreateRequest>\n) -> Result<ApiResponse<T>, AppError> {\n    // logic\n    Ok(ApiResponse::success(data))\n}",
+                "language": "rust"
+              }
+            ]
+          },
+          {
+            "id": "path_handler",
+            "description": "Handler avec extraction de paramètres de chemin",
+            "examples": [
+              {
+                "description": "Handler extrayant un ID depuis le path",
+                "code": "async fn handler(\n    State(state): State<AppState>,\n    Path(id): Path<i32>\n) -> Result<ApiResponse<T>, AppError> {\n    // logic\n    Ok(ApiResponse::success(data))\n}",
+                "language": "rust"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "routing",
+        "label": "Routing",
+        "description": "Organisation et déclaration des routes",
+        "scope": "framework",
+        "criticality": "recommended",
+        "context": "all",
+        "rules": [
+          {
+            "id": "route_grouping",
+            "description": "Regrouper les routes par domaine fonctionnel",
+            "rationale": "Facilite la maintenance et la navigation dans le code"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "errors",
+    "label": "Error Handling",
+    "description": "Gestion centralisée des erreurs avec AppError",
+    "scope": "framework",
+    "criticality": "required",
+    "context": "all",
+    "ai_note": "Toujours utiliser AppError. Ne jamais utiliser unwrap() ou expect() dans les handlers.",
+    "rules": [
+      {
+        "id": "app_error_type",
+        "description": "Type AppError défini dans src/errors.rs",
+        "examples": [
+          {
+            "description": "Définition du type AppError",
+            "code": "pub enum AppError {\n    NotFound(String),\n    BadRequest(String),\n    Unauthorized(String),\n    InternalError(String),\n    DatabaseError(String),\n}",
+            "language": "rust"
+          }
+        ]
+      },
+      {
+        "id": "error_conversion",
+        "description": "Implémenter From<T> pour convertir les erreurs externes en AppError",
+        "rationale": "Permet l'utilisation de l'opérateur ? dans les handlers"
+      }
+    ],
+    "metadata": {
+      "file": "src/errors.rs"
+    }
+  },
+  {
+    "id": "responses",
+    "label": "API Responses",
+    "description": "Structure standardisée des réponses API",
+    "scope": "framework",
+    "criticality": "required",
+    "context": "all",
+    "ai_note": "Toujours envelopper les données dans ApiResponse<T>. Ne jamais retourner de JSON brut.",
+    "rules": [
+      {
+        "id": "api_response_type",
+        "description": "Type ApiResponse<T> défini dans src/response.rs",
+        "examples": [
+          {
+            "description": "Utilisation de ApiResponse",
+            "code": "// Succès\nOk(ApiResponse::success(user))\n\n// Erreur\nErr(AppError::NotFound(\"User not found\".into()))",
+            "language": "rust"
+          }
+        ]
+      },
+      {
+        "id": "response_methods",
+        "description": "Méthodes disponibles : success(data), error(message)",
+        "rationale": "API cohérente pour tous les endpoints"
+      }
+    ],
+    "metadata": {
+      "file": "src/response.rs"
+    }
+  },
+  {
+    "id": "database",
+    "label": "Database",
+    "description": "Configuration et utilisation de la base de données",
+    "scope": "framework",
+    "children": [
+      {
+        "id": "connection",
+        "label": "Connection",
+        "description": "Configuration de la connexion à la base de données",
+        "scope": "framework",
+        "criticality": "required",
+        "context": "all",
+        "rules": [
+          {
+            "id": "supported_databases",
+            "description": "Bases de données supportées : SQLite, PostgreSQL, MySQL",
+            "ai_note": "Choisir la BDD selon DB_CONNECTION dans .env"
+          },
+          {
+            "id": "connection_pooling",
+            "description": "Utiliser un pool de connexions pour les performances",
+            "rationale": "Évite de recréer des connexions à chaque requête"
+          }
+        ],
+        "metadata": {
+          "file": "src/config.rs"
+        }
+      },
+      {
+        "id": "migrations",
+        "label": "Migrations",
+        "description": "Gestion des migrations de schéma",
+        "scope": "framework",
+        "criticality": "required",
+        "context": "all",
+        "rules": [
+          {
+            "id": "migration_naming",
+            "description": "Nommer les migrations avec un timestamp : YYYYMMDDHHMMSS_description.sql",
+            "rationale": "Assure l'ordre d'exécution et évite les conflits"
+          },
+          {
+            "id": "migration_reversibility",
+            "description": "Toujours fournir une migration down si possible",
+            "rationale": "Permet de revenir en arrière en cas de problème"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "config",
+    "label": "Configuration",
+    "description": "Gestion de la configuration via variables d'environnement",
+    "scope": "framework",
+    "criticality": "required",
+    "context": "all",
+    "ai_note": "Toutes les configurations doivent être dans .env. Ne jamais hardcoder de secrets.",
+    "rules": [
+      {
+        "id": "env_vars_database",
+        "description": "Variables d'environnement pour la base de données",
+        "examples": [
+          {
+            "description": "Variables requises pour la connexion DB",
+            "code": "DB_CONNECTION=sqlite\nDB_HOST=localhost\nDB_PORT=5432\nDB_DATABASE=myapp\nDB_USERNAME=user\nDB_PASSWORD=secret"
+          }
+        ]
+      },
+      {
+        "id": "env_vars_app",
+        "description": "Variables d'environnement pour l'application",
+        "examples": [
+          {
+            "description": "Variables de base de l'app",
+            "code": "APP_HOST=0.0.0.0\nAPP_PORT=3000\nAPP_ENV=development"
+          }
+        ]
+      },
+      {
+        "id": "env_vars_jwt",
+        "description": "Variables d'environnement pour JWT (si utilisé)",
+        "examples": [
+          {
+            "description": "Configuration JWT",
+            "code": "JWT_SECRET=your-secret-key\nJWT_EXPIRATION=3600"
+          }
+        ]
+      }
+    ],
+    "metadata": {
+      "file": "src/config.rs"
+    }
+  },
+  {
+    "id": "microservices",
+    "label": "Microservices",
+    "description": "Conventions spécifiques à l'architecture microservices",
+    "scope": "framework",
+    "context": "microservice",
+    "children": [
+      {
+        "id": "grpc",
+        "label": "gRPC avec DSL .rwk",
+        "description": "Communication inter-services via gRPC utilisant le DSL Rustwork (.rwk)",
+        "scope": "framework",
+        "criticality": "required",
+        "context": "microservice",
+        "ai_note": "gRPC est OBLIGATOIRE pour les microservices. Interdit en monolithe. Utiliser UNIQUEMENT le DSL .rwk, JAMAIS de fichiers .proto manuels.",
+        "children": [
+          {
+            "id": "advantages",
+            "label": "Avantages de gRPC avec .rwk",
+            "description": "Pourquoi utiliser gRPC avec le DSL Rustwork plutôt que proto",
+            "scope": "framework",
+            "rules": [
+              {
+                "id": "simplicity",
+                "description": "Syntaxe simplifiée : pas de package, import, options à gérer",
+                "rationale": "Le DSL .rwk génère automatiquement les fichiers .proto optimaux"
+              },
+              {
+                "id": "rust_idiomatic",
+                "description": "Code Rust idiomatique généré : traits async, gestion d'erreurs avec Result<T, Status>",
+                "rationale": "Pas besoin de wrapper ou adapter le code généré"
+              },
+              {
+                "id": "zero_config",
+                "description": "Zéro configuration : build.rs et Cargo.toml gérés automatiquement",
+                "rationale": "rustwork grpc build fait tout le travail"
+              },
+              {
+                "id": "type_safety",
+                "description": "Types Rust natifs : uuid, datetime convertis automatiquement",
+                "rationale": "Pas de conversion manuelle string <-> UUID"
+              },
+              {
+                "id": "monorepo_support",
+                "description": "Support monorepo natif : détecte tous les services automatiquement",
+                "rationale": "Scan de services/**/grpc/*.rwk"
+              }
+            ]
+          },
+          {
+            "id": "limitations",
+            "label": "Limitations actuelles de .rwk",
+            "description": "Ce qui n'est pas encore supporté dans le DSL",
+            "scope": "framework",
+            "rules": [
+              {
+                "id": "no_streaming",
+                "description": "Pas de streaming (client/server/bidirectionnel) pour l'instant",
+                "rationale": "Version 0 : focus sur les RPCs unaires"
+              },
+              {
+                "id": "no_nested_messages",
+                "description": "Pas de messages imbriqués dans la définition",
+                "rationale": "Utiliser list<Message> à la place"
+              },
+              {
+                "id": "no_enums",
+                "description": "Pas d'enums pour l'instant",
+                "rationale": "Utiliser string avec validation côté Rust"
+              },
+              {
+                "id": "no_oneof",
+                "description": "Pas de oneof (union types)",
+                "rationale": "Utiliser plusieurs champs optional<T>"
+              },
+              {
+                "id": "no_maps",
+                "description": "Pas de maps (HashMap)",
+                "rationale": "Utiliser list<KeyValue> à la place"
+              }
+            ]
+          },
+          {
+            "id": "syntax",
+            "label": "Syntaxe DSL .rwk",
+            "description": "Structure et règles du DSL Rustwork",
+            "scope": "framework",
+            "criticality": "required",
+            "rules": [
+              {
+                "id": "file_structure",
+                "description": "1 fichier .rwk = 1 service gRPC",
+                "examples": [
+                  {
+                    "description": "Structure de base d'un fichier .rwk",
+                    "code": "service UserService\n\nrpc GetUser (GetUserRequest) returns (User)\nrpc CreateUser (CreateUserRequest) returns (User)\n\nmessage GetUserRequest {\n  id: uuid\n}\n\nmessage CreateUserRequest {\n  email: string\n  name: string\n}\n\nmessage User {\n  id: uuid\n  email: string\n  name: string\n  created_at: datetime\n}",
+                    "language": "rwk"
+                  }
+                ]
+              },
+              {
+                "id": "naming_conventions",
+                "description": "PascalCase pour services et messages, snake_case pour champs",
+                "rationale": "Conversion automatique vers proto et Rust",
+                "examples": [
+                  {
+                    "description": "Conventions de nommage",
+                    "code": "// ✅ CORRECT\nservice UserService        // PascalCase\nrpc GetUser               // PascalCase\nmessage UserRequest       // PascalCase\n  user_id: uuid          // snake_case\n  created_at: datetime   // snake_case\n\n// ❌ INCORRECT\nservice user_service      // Pas snake_case\nrpc get_user             // Pas snake_case\nmessage userRequest      // Pas camelCase",
+                    "language": "rwk"
+                  }
+                ]
+              },
+              {
+                "id": "no_manual_config",
+                "description": "Pas de package, import, options dans le .rwk",
+                "rationale": "Géré automatiquement par le générateur",
+                "ai_note": "Si l'IA voit package, import, ou option dans un .rwk, c'est une erreur"
+              }
+            ]
+          },
+          {
+            "id": "supported_types",
+            "label": "Types supportés",
+            "description": "Types de données disponibles dans le DSL .rwk",
+            "scope": "framework",
+            "criticality": "required",
+            "rules": [
+              {
+                "id": "primitive_types",
+                "description": "Types primitifs : string, int, bool",
+                "examples": [
+                  {
+                    "description": "Types de base",
+                    "code": "message User {\n  name: string        // String Rust, string proto\n  age: int            // i32 Rust, int32 proto\n  active: bool        // bool Rust, bool proto\n}",
+                    "language": "rwk"
+                  }
+                ]
+              },
+              {
+                "id": "special_types",
+                "description": "Types spéciaux : uuid, datetime",
+                "examples": [
+                  {
+                    "description": "UUID et dates",
+                    "code": "message Record {\n  id: uuid            // String Rust (format UUID), string proto\n  created_at: datetime // String Rust (RFC3339), string proto\n  updated_at: datetime\n}",
+                    "language": "rwk"
+                  }
+                ],
+                "ai_note": "uuid et datetime sont des string côté proto, mais avec validation Rust"
+              },
+              {
+                "id": "optional_types",
+                "description": "Types optionnels : optional<T>",
+                "examples": [
+                  {
+                    "description": "Champs optionnels",
+                    "code": "message Profile {\n  bio: optional<string>      // Option<String> Rust\n  age: optional<int>         // Option<i32> Rust\n  website: optional<string>\n}",
+                    "language": "rwk"
+                  }
+                ]
+              },
+              {
+                "id": "list_types",
+                "description": "Listes : list<T>",
+                "examples": [
+                  {
+                    "description": "Listes de valeurs",
+                    "code": "message Article {\n  tags: list<string>         // Vec<String> Rust, repeated string proto\n  view_counts: list<int>     // Vec<i32> Rust\n  comments: list<Comment>    // Vec<Comment> Rust\n}",
+                    "language": "rwk"
+                  }
+                ]
+              },
+              {
+                "id": "nested_messages",
+                "description": "Messages imbriqués via list<Message>",
+                "examples": [
+                  {
+                    "description": "Utilisation de types complexes",
+                    "code": "message UserWithPosts {\n  id: uuid\n  name: string\n  posts: list<Post>    // Référence à un autre message\n}\n\nmessage Post {\n  id: uuid\n  title: string\n  content: string\n}",
+                    "language": "rwk"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "id": "workflow",
+            "label": "Workflow gRPC",
+            "description": "Processus de développement avec gRPC et .rwk",
+            "scope": "framework",
+            "criticality": "required",
+            "rules": [
+              {
+                "id": "step_1_define",
+                "description": "1. Créer le fichier .rwk dans grpc/ ou services/*/grpc/",
+                "examples": [
+                  {
+                    "description": "Structure de projet",
+                    "code": "my-service/\n├── grpc/\n│   └── user.rwk       ← Définir le service ici\n├── src/\n│   ├── main.rs\n│   └── handlers/\n│       └── user_handler.rs\n└── Cargo.toml"
+                  }
+                ]
+              },
+              {
+                "id": "step_2_generate",
+                "description": "2. Générer le code avec rustwork grpc build",
+                "rationale": "Parse .rwk → génère .proto → génère build.rs → génère code Rust"
+              },
+              {
+                "id": "step_3_compile",
+                "description": "3. Compiler avec cargo build",
+                "rationale": "Le build.rs généré compile les .proto via tonic-build"
+              },
+              {
+                "id": "step_4_implement",
+                "description": "4. Implémenter le trait *Handler généré",
+                "examples": [
+                  {
+                    "description": "Implémentation du handler",
+                    "code": "use async_trait::async_trait;\nuse tonic::Status;\nuse crate::grpc::{UserServiceHandler, User, GetUserRequest};\n\npub struct MyUserHandler;\n\n#[async_trait]\nimpl UserServiceHandler for MyUserHandler {\n    async fn get_user(&self, request: GetUserRequest) -> Result<User, Status> {\n        // Logique métier\n        Ok(User {\n            id: request.id,\n            email: \"user@example.com\".to_string(),\n            name: \"John Doe\".to_string(),\n            created_at: chrono::Utc::now().to_rfc3339(),\n        })\n    }\n}",
+                    "language": "rust"
+                  }
+                ]
+              },
+              {
+                "id": "step_5_serve",
+                "description": "5. Démarrer le serveur avec grpc_service(handler)",
+                "examples": [
+                  {
+                    "description": "Serveur gRPC",
+                    "code": "use tonic::transport::Server;\nuse crate::grpc::grpc_service;\nuse crate::handlers::user_handler::MyUserHandler;\n\n#[tokio::main]\nasync fn main() -> Result<(), Box<dyn std::error::Error>> {\n    let addr = \"[::1]:50051\".parse()?;\n    let handler = MyUserHandler;\n    \n    Server::builder()\n        .add_service(grpc_service(handler))\n        .serve(addr)\n        .await?;\n    \n    Ok(())\n}",
+                    "language": "rust"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "id": "monorepo",
+            "label": "Architecture Monorepo",
+            "description": "Organisation multi-services avec gRPC",
+            "scope": "framework",
+            "criticality": "recommended",
+            "context": "microservice",
+            "rules": [
+              {
+                "id": "directory_structure",
+                "description": "Placer chaque service dans services/nom-service/",
+                "examples": [
+                  {
+                    "description": "Structure monorepo",
+                    "code": "my-project/\n├── services/\n│   ├── user/\n│   │   ├── grpc/\n│   │   │   └── user.rwk\n│   │   ├── src/main.rs\n│   │   └── Cargo.toml\n│   ├── auth/\n│   │   ├── grpc/\n│   │   │   └── auth.rwk\n│   │   └── ...\n│   └── product/\n│       ├── grpc/\n│       │   └── product.rwk\n│       └── ...\n└── Cargo.toml (workspace)"
+                  }
+                ]
+              },
+              {
+                "id": "auto_detection",
+                "description": "rustwork grpc build détecte automatiquement tous les services",
+                "rationale": "Scan de services/**/grpc/*.rwk"
+              },
+              {
+                "id": "inter_service_calls",
+                "description": "Utiliser les clients générés pour appeler d'autres services",
+                "examples": [
+                  {
+                    "description": "Appel inter-services",
+                    "code": "// Dans le service Auth, appeler le service User\nuse crate::grpc::user_service_client;\n\nlet mut user_client = user_service_client(\"http://user-service:50051\").await?;\nlet user = user_client.get_user(request).await?.into_inner();",
+                    "language": "rust"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "id": "best_practices",
+            "label": "Bonnes pratiques gRPC",
+            "description": "Recommandations pour l'utilisation de gRPC avec Rustwork",
+            "scope": "framework",
+            "criticality": "recommended",
+            "rules": [
+              {
+                "id": "single_responsibility",
+                "description": "1 service = 1 domaine métier cohérent",
+                "rationale": "Évite les services fourre-tout"
+              },
+              {
+                "id": "versioning",
+                "description": "Préfixer les services par une version si breaking changes prévus",
+                "examples": [
+                  {
+                    "description": "Versioning de service",
+                    "code": "service UserServiceV1\nservice UserServiceV2",
+                    "language": "rwk"
+                  }
+                ]
+              },
+              {
+                "id": "error_handling",
+                "description": "Retourner des Status gRPC appropriés (NOT_FOUND, INVALID_ARGUMENT, etc.)",
+                "examples": [
+                  {
+                    "description": "Gestion d'erreur gRPC",
+                    "code": "use tonic::{Status, Code};\n\nif user.is_none() {\n    return Err(Status::new(Code::NotFound, \"User not found\"));\n}",
+                    "language": "rust"
+                  }
+                ]
+              },
+              {
+                "id": "keep_messages_simple",
+                "description": "Messages simples et plats : éviter trop d'imbrication",
+                "rationale": "Plus facile à maintenir et sérialiser"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "service_discovery",
+        "label": "Service Discovery",
+        "description": "Découverte et enregistrement des services",
+        "scope": "framework",
+        "criticality": "recommended",
+        "context": "microservice",
+        "rules": [
+          {
+            "id": "service_registry",
+            "description": "Enregistrer chaque service au démarrage",
+            "rationale": "Permet la communication dynamique entre services"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "testing",
+    "label": "Testing",
+    "description": "Conventions pour les tests unitaires et d'intégration",
+    "scope": "framework",
+    "criticality": "recommended",
+    "context": "all",
+    "rules": [
+      {
+        "id": "test_organization",
+        "description": "Organiser les tests dans le dossier tests/ ou dans des modules #[cfg(test)]",
+        "rationale": "Sépare clairement le code de test du code de production"
+      },
+      {
+        "id": "integration_tests",
+        "description": "Placer les tests d'intégration dans tests/",
+        "rationale": "Les tests d'intégration nécessitent une compilation séparée"
+      },
+      {
+        "id": "unit_tests",
+        "description": "Placer les tests unitaires dans des modules #[cfg(test)] à côté du code testé",
+        "rationale": "Facilite la maintenance et la compréhension du code"
+      }
+    ]
+  }
+]
