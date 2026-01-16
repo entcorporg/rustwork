@@ -9,7 +9,7 @@ mod parser;
 /// rustwork.getModels - Get all Rust models/DTOs in the project
 ///
 /// Parses Rust source code to identify structs used as models or DTOs.
-/// Includes SeaORM entities, request/response types, and data transfer objects.
+/// Includes domain entities, request/response types, and data transfer objects.
 ///
 /// CRITICAL: Returns exact data from source code analysis. No runtime inspection,
 /// no database inference, no guessing.

@@ -22,32 +22,24 @@ pub async fn get_{{ name }}(
 "#;
 
 pub const MODEL_RS: &str = r#"use serde::{Deserialize, Serialize};
-use sea_orm::entity::prelude::*;
 
-#[derive(Clone, Debug, PartialEq, DeriveEntityModel, Serialize, Deserialize)]
-#[sea_orm(table_name = "{{ name }}s")]
+#[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
 pub struct Model {
-    #[sea_orm(primary_key)]
     pub id: i32,
     pub name: String,
-    pub created_at: DateTimeUtc,
+    pub created_at: chrono::DateTime<chrono::Utc>,
 }
-
-#[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
-pub enum Relation {}
-
-impl ActiveModelBehavior for ActiveModel {}
 
 pub type {{ name | capitalize }} = Model;
 "#;
 
 pub const SERVICE_RS: &str = r#"use anyhow::Result;
-use sea_orm::DatabaseConnection;
+use rustwork::DatabaseConnection;
 
 use crate::models::{{ name }}::{{ name | capitalize }};
 
 pub async fn list_{{ name }}s(db: &DatabaseConnection) -> Result<Vec<{{ name | capitalize }}>> {
-    // TODO: Implement list logic
+    // TODO: Implement list logic with sqlx
     Ok(vec![])
 }
 

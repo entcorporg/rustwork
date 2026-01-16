@@ -1,6 +1,5 @@
 pub mod add_service;
 pub mod conventions;
-pub mod db;
 pub mod dev;
 pub mod grpc_build;
 pub mod make;

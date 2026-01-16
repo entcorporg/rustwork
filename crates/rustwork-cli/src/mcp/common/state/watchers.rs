@@ -39,7 +39,9 @@ impl LiveProjectState {
 
     /// Start the diagnostic collector
     pub async fn start_diagnostics_collector(&self) -> Result<()> {
-        let collector = DiagnosticCollector::new();
+        // Use cargo_workspace_dir() instead of path() to execute cargo check
+        // in the correct directory (Backend/ for microservices)
+        let collector = DiagnosticCollector::new(self.workspace_root.cargo_workspace_dir());
         let collection = collector.get_collection();
 
         // Share the collection with our state

@@ -27,7 +27,7 @@ config = { workspace = true }
 dotenvy = { workspace = true }
 
 # Database
-sea-orm = { workspace = true }
+sqlx = { workspace = true }
 
 # Error handling
 thiserror = { workspace = true }

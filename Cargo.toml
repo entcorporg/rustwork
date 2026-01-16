@@ -6,7 +6,7 @@ members = [
 ]
 
 [workspace.package]
-version = "0.6.0"
+version = "0.1.4"
 edition = "2021"
 authors = ["Rustwork Contributors"]
 license = "MIT"
@@ -29,8 +29,7 @@ config = "0.15"
 dotenvy = "0.15"
 
 # Database
-sea-orm = { version = "1.0", features = ["sqlx-postgres", "sqlx-sqlite", "sqlx-mysql", "runtime-tokio-native-tls", "macros"] }
-sea-orm-migration = { version = "1.0" }
+sqlx = { version = "0.8", features = ["runtime-tokio-native-tls", "sqlite", "postgres", "mysql"] }
 
 # CLI
 clap = { version = "4.5", features = ["derive"] }

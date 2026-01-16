@@ -6,7 +6,7 @@ pub mod vscode;
 use minijinja::Environment;
 
 /// Crée un environnement de templates pour l'architecture microservices
-/// 
+///
 /// Rustwork est 100% microservices - pas de support monolithe.
 pub fn create_micro_env() -> Environment<'static> {
     let mut env = Environment::new();
@@ -25,7 +25,7 @@ pub fn create_micro_env() -> Environment<'static> {
     env.add_template("Cargo.toml", project::CARGO_TOML).unwrap();
     env.add_template("gitignore", project::GITIGNORE).unwrap();
     env.add_template("readme.md", project::README_MD).unwrap();
-    
+
     // Shared library templates
     env.add_template("shared_cargo.toml", project::SHARED_CARGO_TOML)
         .unwrap();
@@ -39,17 +39,20 @@ pub fn create_micro_env() -> Environment<'static> {
     env.add_template("service.rs", components::SERVICE_RS)
         .unwrap();
 
-    // Migration templates
-    env.add_template("migration.rs", migration::MIGRATION_RS)
+    // Migration templates (SQL files)
+    env.add_template("migration_up.sql", migration::MIGRATION_UP_SQL)
         .unwrap();
-    env.add_template("migration_cargo.toml", migration::MIGRATION_CARGO_TOML)
+    env.add_template("migration_down.sql", migration::MIGRATION_DOWN_SQL)
         .unwrap();
-    env.add_template("migration_lib.rs", migration::MIGRATION_LIB_RS)
+    env.add_template("migration_readme.md", migration::MIGRATION_README)
         .unwrap();
-    env.add_template("migration_initial.rs", migration::MIGRATION_INITIAL)
+    env.add_template("migration_initial_up.sql", migration::MIGRATION_INITIAL_UP)
         .unwrap();
-    env.add_template("migration_main.rs", migration::MIGRATION_MAIN_RS)
-        .unwrap();
+    env.add_template(
+        "migration_initial_down.sql",
+        migration::MIGRATION_INITIAL_DOWN,
+    )
+    .unwrap();
 
     // VSCode templates for workspace
     env.add_template("vscode_mcp.json", vscode::VSCODE_MCP_JSON)

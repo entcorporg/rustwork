@@ -194,7 +194,7 @@ pub async fn mcp_list_tools() -> Result<Value, RpcError> {
             },
             {
                 "name": "rustwork_get_models",
-                "description": "Get all Rust models/DTOs in the project: entities, request/response types, domain models. Parses source code to identify structs with fields, derives, and SeaORM relations.",
+                "description": "Get all Rust models/DTOs in the project: entities, request/response types, domain models. Parses source code to identify structs with fields, derives, and relations.",
                 "inputSchema": {
                     "type": "object",
                     "properties": {

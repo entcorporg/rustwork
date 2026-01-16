@@ -5,7 +5,8 @@ pub const VSCODE_MCP_JSON: &str = r#"{
       "type": "stdio",
       "command": "rustwork",
       "args": ["mcp", "--stdio", "--project", "{{ project_path }}"]
-    }
+    },
+  "inputs": []
   }
 }
 "#;

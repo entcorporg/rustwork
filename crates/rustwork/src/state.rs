@@ -1,5 +1,13 @@
 use crate::config::AppConfig;
-use sea_orm::DatabaseConnection;
+use sqlx::{MySql, Pool, Postgres, Sqlite};
+
+/// Database connection pool supporting multiple backends
+#[derive(Clone)]
+pub enum DatabaseConnection {
+    Sqlite(Pool<Sqlite>),
+    Postgres(Pool<Postgres>),
+    Mysql(Pool<MySql>),
+}
 use std::sync::Arc;
 
 #[derive(Clone)]
@@ -21,11 +29,12 @@ impl AppState {
 mod tests {
     use super::*;
     use crate::config::types::{CorsConfig, DatabaseConfig, ServerConfig};
-    use sea_orm::Database;
+    use sqlx::SqlitePool;
 
     #[tokio::test]
     async fn test_app_state_new() {
-        let db = Database::connect("sqlite::memory:").await.unwrap();
+        let pool = SqlitePool::connect("sqlite::memory:").await.unwrap();
+        let db = DatabaseConnection::Sqlite(pool);
         let config = AppConfig {
             server: ServerConfig {
                 host: "127.0.0.1".to_string(),
@@ -40,7 +49,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_app_state_clone() {
-        let db = Database::connect("sqlite::memory:").await.unwrap();
+        let pool = SqlitePool::connect("sqlite::memory:").await.unwrap();
+        let db = DatabaseConnection::Sqlite(pool);
         let config = AppConfig {
             server: ServerConfig {
                 host: "127.0.0.1".to_string(),
@@ -58,7 +68,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_app_state_config_is_arc() {
-        let db = Database::connect("sqlite::memory:").await.unwrap();
+        let pool = SqlitePool::connect("sqlite::memory:").await.unwrap();
+        let db = DatabaseConnection::Sqlite(pool);
         let config = AppConfig {
             server: ServerConfig {
                 host: "0.0.0.0".to_string(),

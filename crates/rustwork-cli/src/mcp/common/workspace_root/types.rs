@@ -1,7 +1,7 @@
 use std::path::{Path, PathBuf};
 
 /// Workspace root - detected once at startup, immutable
-/// 
+///
 /// Rustwork is 100% microservices - no monolith support.
 #[derive(Debug, Clone)]
 pub struct WorkspaceRoot {
@@ -21,7 +21,7 @@ impl WorkspaceRoot {
     }
 
     /// Get the services directory path
-    /// 
+    ///
     /// Returns Backend/services/ if it exists, otherwise services/
     pub fn services_dir(&self) -> PathBuf {
         let backend_services = self.path.join("Backend/services");
@@ -29,6 +29,19 @@ impl WorkspaceRoot {
             backend_services
         } else {
             self.path.join("services")
+        }
+    }
+
+    /// Get the Cargo workspace directory path
+    ///
+    /// Returns Backend/ if it exists (microservices with Backend/Cargo.toml),
+    /// otherwise returns the root path (legacy structure)
+    pub fn cargo_workspace_dir(&self) -> PathBuf {
+        let backend_dir = self.path.join("Backend");
+        if backend_dir.join("Cargo.toml").exists() {
+            backend_dir
+        } else {
+            self.path.clone()
         }
     }
 

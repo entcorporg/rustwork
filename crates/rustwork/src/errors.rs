@@ -3,7 +3,7 @@ use axum::{
     response::{IntoResponse, Response},
     Json,
 };
-use sea_orm::DbErr;
+use sqlx::Error as SqlxError;
 use serde_json::json;
 use thiserror::Error;
 
@@ -62,15 +62,15 @@ impl IntoResponse for AppError {
     }
 }
 
-// Conversion depuis DbErr (SeaORM)
-impl From<DbErr> for AppError {
-    fn from(err: DbErr) -> Self {
+// Conversion depuis SqlxError
+impl From<SqlxError> for AppError {
+    fn from(err: SqlxError) -> Self {
         match err {
-            DbErr::RecordNotFound(msg) => AppError::NotFound(msg),
-            DbErr::Custom(msg) => AppError::Database(msg),
-            DbErr::Conn(msg) => AppError::Database(msg.to_string()),
-            DbErr::Exec(msg) => AppError::Database(msg.to_string()),
-            DbErr::Query(msg) => AppError::Database(msg.to_string()),
+            SqlxError::RowNotFound => AppError::NotFound("Record not found".to_string()),
+            SqlxError::Database(db_err) => AppError::Database(db_err.to_string()),
+            SqlxError::Configuration(msg) => AppError::Database(msg.to_string()),
+            SqlxError::Io(io_err) => AppError::Database(io_err.to_string()),
+            SqlxError::Tls(tls_err) => AppError::Database(tls_err.to_string()),
             _ => AppError::Database(err.to_string()),
         }
     }
@@ -157,17 +157,10 @@ mod tests {
     }
 
     #[test]
-    fn test_db_err_record_not_found_conversion() {
-        let db_err = DbErr::RecordNotFound("user not found".to_string());
-        let app_err: AppError = db_err.into();
+    fn test_sqlx_row_not_found_conversion() {
+        let sqlx_err = SqlxError::RowNotFound;
+        let app_err: AppError = sqlx_err.into();
         assert!(matches!(app_err, AppError::NotFound(_)));
-    }
-
-    #[test]
-    fn test_db_err_custom_conversion() {
-        let db_err = DbErr::Custom("custom error".to_string());
-        let app_err: AppError = db_err.into();
-        assert!(matches!(app_err, AppError::Database(_)));
     }
 
     #[test]

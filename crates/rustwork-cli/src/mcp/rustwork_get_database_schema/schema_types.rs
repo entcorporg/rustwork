@@ -5,7 +5,7 @@ pub struct DatabaseSchema {
     pub connection_info: String, // Sanitized (no passwords)
     pub tables: Vec<TableSchema>,
     pub is_complete: bool,
-    pub source: String, // "introspection", "seaorm", "migrations"
+    pub source: String, // "introspection", "sqlx", "migrations"
 }
 
 /// Table schema

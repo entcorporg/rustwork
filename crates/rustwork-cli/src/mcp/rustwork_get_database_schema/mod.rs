@@ -3,7 +3,7 @@ use crate::mcp::common::state::LiveProjectState;
 use serde_json::{json, Value};
 use std::path::PathBuf;
 
-mod introspection;
+pub mod introspection;
 mod schema_types;
 
 /// rustwork.getDatabaseSchema - Get database schema for a service
@@ -103,6 +103,8 @@ fn resolve_service_path(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::fs;
+    use tempfile::TempDir;
 
     #[test]
     fn test_resolve_service_path_validation() {
@@ -110,5 +112,37 @@ mod tests {
         let temp_dir = std::env::temp_dir();
         let result = resolve_service_path(&temp_dir, "nonexistent_service");
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_resolve_service_path_finds_service() {
+        let temp_dir = TempDir::new().unwrap();
+        let workspace = temp_dir.path();
+
+        // Créer une structure de service valide
+        let services_dir = workspace.join("services");
+        let auth_service = services_dir.join("auth");
+        fs::create_dir_all(&auth_service).unwrap();
+        fs::write(auth_service.join("Cargo.toml"), "[package]").unwrap();
+
+        let result = resolve_service_path(workspace, "auth");
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), auth_service);
+    }
+
+    #[test]
+    fn test_resolve_service_path_backend_structure() {
+        let temp_dir = TempDir::new().unwrap();
+        let workspace = temp_dir.path();
+
+        // Créer une structure Backend/services
+        let backend_services = workspace.join("Backend/services");
+        let user_service = backend_services.join("user");
+        fs::create_dir_all(&user_service).unwrap();
+        fs::write(user_service.join("Cargo.toml"), "[package]").unwrap();
+
+        let result = resolve_service_path(workspace, "user");
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), user_service);
     }
 }

@@ -5,6 +5,38 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.4] - 2026-01-16
+
+### Fixed
+- **CRITICAL FIX P0**: `rustwork_get_diagnostics` now executes `cargo check` in the user project workspace
+  - `DiagnosticCollector` now accepts `workspace_path` parameter
+  - `cargo check` runs in the correct directory with `.current_dir(workspace_path)`
+  - Previously, diagnostics were collected from Rustwork's own codebase instead of the user's project
+  - MCP server now correctly reports compilation errors from the target project
+
+## [0.1.2] - 2026-01-16
+
+### Fixed
+- **CRITICAL FIX**: Removed SeaORM migration references in micro service templates
+  - Template `CARGO_TOML` in `micro/project/mod.rs` no longer includes `{{ project_name }}-migration` dependency
+  - Fixes `cargo run` crash for all generated services
+  - This completes the fix started in 0.1.1
+
+### Note
+- Users with services generated before 0.1.2 must manually remove the `*-migration = { path = "migration" }` line from each service's `Cargo.toml`. See `MIGRATION_0.1.1.md`.
+
+## [0.1.1] - 2026-01-16
+
+### Fixed
+- **BREAKING FIX**: Removed SeaORM migration references in workspace generation
+  - `rustwork add-service` no longer adds `services/<name>/migration` to workspace members
+  - Fixes `rustwork dev` crash when migration folder doesn't exist
+  - Migration guide available in `MIGRATION_0.1.1.md` for existing projects
+  - All services now use sqlx with SQL migration files in `migrations/` folder
+
+### Note
+- This is a patch fix for the migration system. Users with existing projects need to manually remove `migration` references from their `Backend/Cargo.toml`. See `MIGRATION_0.1.1.md`.
+
 ## [Unreleased]
 
 ### Added

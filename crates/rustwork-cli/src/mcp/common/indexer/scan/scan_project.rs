@@ -8,8 +8,12 @@ use tokio::fs;
 pub async fn scan_project(project_root: &Path) -> Result<CodeIndex> {
     let mut index = CodeIndex::new();
 
-    // Check if this is a microservices project (has services/ directory)
-    let services_dir = project_root.join("services");
+    // Check if this is a microservices project (has services/ or Backend/services/ directory)
+    let services_dir = if project_root.join("Backend/services").exists() {
+        project_root.join("Backend/services")
+    } else {
+        project_root.join("services")
+    };
 
     if services_dir.exists() && services_dir.is_dir() {
         // Microservices mode: scan each service

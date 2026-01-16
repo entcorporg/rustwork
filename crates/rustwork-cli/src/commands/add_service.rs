@@ -18,7 +18,7 @@ pub async fn execute(service_name: &str, project_path: Option<&str>) -> Result<(
     // Find the Backend/services directory
     let backend_services = workspace_root.path().join("Backend/services");
     let legacy_services = workspace_root.path().join("services");
-    
+
     let services_dir = if backend_services.exists() {
         backend_services
     } else if legacy_services.exists() {
@@ -38,23 +38,34 @@ pub async fn execute(service_name: &str, project_path: Option<&str>) -> Result<(
     if service_name.is_empty() {
         anyhow::bail!("Service name cannot be empty");
     }
-    
+
     if service_name == "shared" {
         anyhow::bail!("'shared' is a reserved name for the shared library");
     }
-    
-    if !service_name.chars().next().map(|c| c.is_ascii_lowercase()).unwrap_or(false) {
+
+    if !service_name
+        .chars()
+        .next()
+        .map(|c| c.is_ascii_lowercase())
+        .unwrap_or(false)
+    {
         anyhow::bail!("Service name must start with a lowercase letter");
     }
-    
-    if !service_name.chars().all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '_') {
+
+    if !service_name
+        .chars()
+        .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '_')
+    {
         anyhow::bail!("Service name must contain only lowercase letters, digits, and underscores");
     }
 
     // Check if service already exists
     let service_path = services_dir.join(&service_name);
     if service_path.exists() {
-        anyhow::bail!("Service '{}' already exists in this workspace", service_name);
+        anyhow::bail!(
+            "Service '{}' already exists in this workspace",
+            service_name
+        );
     }
 
     println!("🔧 Adding service '{}' to the workspace...", service_name);
@@ -167,7 +178,7 @@ async fn update_readme(readme_path: &Path, service_name: &str) -> Result<()> {
 async fn count_existing_services(services_dir: &Path) -> Result<usize> {
     let mut count = 0;
     let mut entries = fs::read_dir(services_dir).await?;
-    
+
     while let Some(entry) = entries.next_entry().await? {
         let path = entry.path();
         if path.is_dir() {
@@ -179,25 +190,24 @@ async fn count_existing_services(services_dir: &Path) -> Result<usize> {
             }
         }
     }
-    
+
     Ok(count)
 }
 
 /// Update Backend/Cargo.toml to include the new service in workspace members
 async fn update_workspace_cargo_toml(cargo_toml_path: &Path, service_name: &str) -> Result<()> {
     let content = fs::read_to_string(&cargo_toml_path).await?;
-    
+
     // Find the members array and add the new service
     let new_member = format!("    \"services/{}\",", service_name);
-    let new_migration = format!("    \"services/{}/migration\",", service_name);
-    
+
     // Find where to insert (before the closing bracket of members)
     if let Some(members_end) = content.find("]\n") {
         let (before, after) = content.split_at(members_end);
-        let new_content = format!("{}\n{}\n{}{}", before, new_member, new_migration, after);
+        let new_content = format!("{}\n{}{}", before, new_member, after);
         fs::write(&cargo_toml_path, new_content).await?;
         println!("   Updated Backend/Cargo.toml");
     }
-    
+
     Ok(())
 }

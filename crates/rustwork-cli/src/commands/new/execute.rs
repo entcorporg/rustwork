@@ -5,7 +5,7 @@ use anyhow::Result;
 /// Usage: rustwork new auth,user,session
 ///
 /// Crée un workspace micro-services avec la structure:
-/// ```
+/// ```text
 /// ./
 /// ├── .vscode/
 /// │   ├── settings.json

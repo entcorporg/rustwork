@@ -45,8 +45,12 @@ pub async fn analyze_routes_in_file(
 pub async fn scan_routes(project_root: &Path) -> Result<RouteRegistry> {
     let mut registry = RouteRegistry::new();
 
-    // Check for micro-services layout (services/ directory)
-    let services_dir = project_root.join("services");
+    // Check for micro-services layout (services/ or Backend/services/ directory)
+    let services_dir = if project_root.join("Backend/services").exists() {
+        project_root.join("Backend/services")
+    } else {
+        project_root.join("services")
+    };
     if services_dir.exists() && services_dir.is_dir() {
         // Scan each service
         let mut entries = fs::read_dir(&services_dir).await?;

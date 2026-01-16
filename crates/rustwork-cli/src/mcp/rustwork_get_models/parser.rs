@@ -17,7 +17,7 @@ pub async fn parse_service_models(
         all_models.extend(models);
     }
 
-    // Secondary location: src/entities/ (SeaORM convention)
+    // Secondary location: src/entities/ (legacy convention)
     let entities_dir = service_path.join("src/entities");
     if entities_dir.exists() && entities_dir.is_dir() {
         let entities = parse_models_directory(&entities_dir, service_name).await?;
@@ -42,11 +42,7 @@ async fn parse_models_directory(
     let mut models = Vec::new();
 
     let entries = std::fs::read_dir(dir).map_err(|e| {
-        RpcError::internal_error(format!(
-            "Failed to read directory {}: {}",
-            dir.display(),
-            e
-        ))
+        RpcError::internal_error(format!("Failed to read directory {}: {}", dir.display(), e))
     })?;
 
     for entry in entries.flatten() {

@@ -45,11 +45,6 @@ enum Commands {
         #[command(subcommand)]
         generator: Generator,
     },
-    /// Database management commands
-    Db {
-        #[command(subcommand)]
-        action: DbAction,
-    },
     /// Start development server with hot-reload
     Dev {
         /// Enable MCP (Model Context Protocol) server
@@ -120,24 +115,6 @@ enum Generator {
     },
 }
 
-#[derive(Subcommand)]
-enum DbAction {
-    /// Run pending database migrations
-    Migrate {
-        /// Number of migrations to run (default: all)
-        #[arg(short, long)]
-        steps: Option<u32>,
-    },
-    /// Rollback the last migration(s)
-    Rollback {
-        /// Number of migrations to rollback (default: 1)
-        #[arg(short, long, default_value = "1")]
-        steps: u32,
-    },
-    /// Show migration status
-    Status,
-}
-
 #[tokio::main]
 async fn main() -> Result<()> {
     let cli = Cli::parse();
@@ -158,17 +135,6 @@ async fn main() -> Result<()> {
             }
             Generator::Model { name } => {
                 commands::make_model(&name).await?;
-            }
-        },
-        Commands::Db { action } => match action {
-            DbAction::Migrate { steps } => {
-                commands::db::migrate(steps).await?;
-            }
-            DbAction::Rollback { steps } => {
-                commands::db::rollback(Some(steps)).await?;
-            }
-            DbAction::Status => {
-                commands::db::status().await?;
             }
         },
         Commands::Dev { mcp, path } => {

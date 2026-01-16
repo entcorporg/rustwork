@@ -140,4 +140,63 @@ mod tests {
 
         fs::remove_dir_all(&temp_dir).ok();
     }
+
+    #[test]
+    fn test_cargo_workspace_dir_backend_structure() {
+        let temp_dir = std::env::temp_dir().join("test_cargo_workspace_backend");
+        let backend_dir = temp_dir.join("Backend");
+        let services_dir = backend_dir.join("services");
+
+        // Create Backend/Cargo.toml
+        fs::create_dir_all(&backend_dir).unwrap();
+        fs::write(
+            backend_dir.join("Cargo.toml"),
+            "[workspace]\nmembers = [\"services/*\"]",
+        )
+        .unwrap();
+
+        // Create a service
+        let auth_service = services_dir.join("auth");
+        fs::create_dir_all(&auth_service).unwrap();
+        create_valid_rust_service(&auth_service);
+
+        let root = WorkspaceRoot::detect(&temp_dir).unwrap();
+        assert_eq!(
+            root.cargo_workspace_dir(),
+            temp_dir.join("Backend"),
+            "cargo_workspace_dir should return Backend/ when Backend/Cargo.toml exists"
+        );
+
+        fs::remove_dir_all(&temp_dir).ok();
+    }
+
+    #[test]
+    fn test_cargo_workspace_dir_legacy_structure() {
+        let temp_dir = std::env::temp_dir().join("test_cargo_workspace_legacy");
+        let services_dir = temp_dir.join("services");
+
+        // Create directory structure
+        fs::create_dir_all(&services_dir).unwrap();
+
+        // Create root Cargo.toml
+        fs::write(
+            temp_dir.join("Cargo.toml"),
+            "[workspace]\nmembers = [\"services/*\"]",
+        )
+        .unwrap();
+
+        // Create a service
+        let auth_service = services_dir.join("auth");
+        fs::create_dir_all(&auth_service).unwrap();
+        create_valid_rust_service(&auth_service);
+
+        let root = WorkspaceRoot::detect(&temp_dir).unwrap();
+        assert_eq!(
+            root.cargo_workspace_dir(),
+            temp_dir.canonicalize().unwrap(),
+            "cargo_workspace_dir should return root path when Backend/Cargo.toml doesn't exist"
+        );
+
+        fs::remove_dir_all(&temp_dir).ok();
+    }
 }

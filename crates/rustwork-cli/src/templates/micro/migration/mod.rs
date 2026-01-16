@@ -1,99 +1,72 @@
-pub const MIGRATION_RS: &str = r#"use sea_orm_migration::prelude::*;
+pub const MIGRATION_UP_SQL: &str = r#"-- Migration UP: {{ migration_name }}
+-- Created: {{ timestamp }}
 
-#[derive(DeriveMigrationName)]
-pub struct Migration;
+-- Example: Create a table
+-- CREATE TABLE IF NOT EXISTS users (
+--     id INTEGER PRIMARY KEY AUTOINCREMENT,
+--     email TEXT NOT NULL UNIQUE,
+--     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+-- );
 
-#[async_trait::async_trait]
-impl MigrationTrait for Migration {
-    async fn up(&self, manager: &SchemaManager) -> Result<(), DbErr> {
-        // Implement your migration here
-        manager
-            .create_table(
-                Table::create()
-                    .table({{ table_name }}::Table)
-                    .if_not_exists()
-                    .col(
-                        ColumnDef::new({{ table_name }}::Id)
-                            .integer()
-                            .not_null()
-                            .auto_increment()
-                            .primary_key(),
-                    )
-                    .to_owned(),
-            )
-            .await
-    }
-
-    async fn down(&self, manager: &SchemaManager) -> Result<(), DbErr> {
-        manager
-            .drop_table(Table::drop().table({{ table_name }}::Table).to_owned())
-            .await
-    }
-}
-
-#[derive(DeriveIden)]
-enum {{ table_name }} {
-    Table,
-    Id,
-}
+-- Add your migration SQL here
 "#;
 
-pub const MIGRATION_CARGO_TOML: &str = r#"[package]
-name = "{{ project_name }}-migration"
-version = "0.1.0"
-edition = "2021"
+pub const MIGRATION_DOWN_SQL: &str = r#"-- Migration DOWN: {{ migration_name }}
+-- Created: {{ timestamp }}
 
-[lib]
-name = "{{ project_name }}_migration"
-path = "src/lib.rs"
+-- Example: Drop a table
+-- DROP TABLE IF EXISTS users;
 
-[[bin]]
-name = "{{ project_name }}-migration"
-path = "src/main.rs"
-
-[dependencies]
-async-trait = "0.1"
-sea-orm-migration = { version = "1.0", features = ["runtime-tokio-native-tls", "sqlx-sqlite", "sqlx-postgres", "sqlx-mysql"] }
+-- Add your rollback SQL here
 "#;
 
-pub const MIGRATION_LIB_RS: &str = r#"pub use sea_orm_migration::prelude::*;
+pub const MIGRATION_README: &str = r#"# Migrations SQL
 
-mod m20240101_000001_create_migrations_table;
+Ce dossier contient les migrations de base de données au format SQL pur, compatible avec sqlx.
 
-pub struct Migrator;
+## Structure
 
-#[async_trait::async_trait]
-impl MigratorTrait for Migrator {
-    fn migrations() -> Vec<Box<dyn MigrationTrait>> {
-        vec![
-            Box::new(m20240101_000001_create_migrations_table::Migration),
-        ]
-    }
-}
+Chaque migration se compose de deux fichiers :
+- `YYYYMMDD_HHMMSS_<nom>.up.sql` : migration à appliquer
+- `YYYYMMDD_HHMMSS_<nom>.down.sql` : rollback de la migration
+
+## Utilisation avec sqlx-cli
+
+```bash
+# Installer sqlx-cli
+cargo install sqlx-cli
+
+# Appliquer les migrations
+sqlx migrate run
+
+# Rollback de la dernière migration
+sqlx migrate revert
+
+# Créer une nouvelle migration
+sqlx migrate add <nom>
+```
+
+## Exemple
+
+```sql
+-- 20240101_120000_create_users.up.sql
+CREATE TABLE IF NOT EXISTS users (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    email TEXT NOT NULL UNIQUE,
+    password_hash TEXT NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 20240101_120000_create_users.down.sql
+DROP TABLE IF EXISTS users;
+```
 "#;
 
-pub const MIGRATION_INITIAL: &str = r#"use sea_orm_migration::prelude::*;
-
-#[derive(DeriveMigrationName)]
-pub struct Migration;
-
-#[async_trait::async_trait]
-impl MigrationTrait for Migration {
-    async fn up(&self, manager: &SchemaManager) -> Result<(), DbErr> {
-        // Initial migration - customize as needed
-        Ok(())
-    }
-
-    async fn down(&self, manager: &SchemaManager) -> Result<(), DbErr> {
-        Ok(())
-    }
-}
+pub const MIGRATION_INITIAL_UP: &str = r#"-- Initial migration
+-- This migration is automatically created but empty
+-- Add your initial database schema here if needed
 "#;
 
-pub const MIGRATION_MAIN_RS: &str = r#"use sea_orm_migration::prelude::*;
-
-#[tokio::main]
-async fn main() {
-    cli::run_cli(migration::Migrator).await;
-}
+pub const MIGRATION_INITIAL_DOWN: &str = r#"-- Initial migration rollback
+-- Add rollback SQL here if needed
 "#;

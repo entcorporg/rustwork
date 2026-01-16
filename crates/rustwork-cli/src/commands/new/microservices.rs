@@ -5,9 +5,9 @@ use tokio::fs;
 use crate::templates::{create_micro_env, TemplateContext};
 
 /// Crée un workspace micro-services Rustwork
-/// 
+///
 /// Structure générée:
-/// ```
+/// ```text
 /// ./
 /// ├── .vscode/
 /// │   ├── settings.json
@@ -56,15 +56,15 @@ pub async fn create_microservices_workspace(
         .unwrap_or_else(|| "rustwork-workspace".to_string());
 
     let mut context = TemplateContext::new();
-    context.insert("project_name".to_string(), serde_json::json!(workspace_name));
+    context.insert(
+        "project_name".to_string(),
+        serde_json::json!(workspace_name),
+    );
     context.insert(
         "project_path".to_string(),
         serde_json::json!(absolute_root_path),
     );
-    context.insert(
-        "services".to_string(), 
-        serde_json::json!(services),
-    );
+    context.insert("services".to_string(), serde_json::json!(services));
 
     // Use micro-services template environment
     let env = create_micro_env();
@@ -108,14 +108,9 @@ pub async fn create_microservices_workspace(
     }
 
     // Create Backend Cargo.toml workspace
-    let mut workspace_members: Vec<String> = services
-        .iter()
-        .flat_map(|s| vec![
-            format!("services/{}", s),
-            format!("services/{}/migration", s),
-        ])
-        .collect();
-    
+    let mut workspace_members: Vec<String> =
+        services.iter().map(|s| format!("services/{}", s)).collect();
+
     if create_shared {
         workspace_members.push("services/shared".to_string());
     }
@@ -181,7 +176,11 @@ rustwork add-service <name>
             let shared_str = "shared".to_string();
             services
                 .iter()
-                .chain(if create_shared { Some(&shared_str) } else { None })
+                .chain(if create_shared {
+                    Some(&shared_str)
+                } else {
+                    None
+                })
                 .map(|s| format!("    ├── {}/", s))
                 .collect::<Vec<_>>()
                 .join("\n")
@@ -272,7 +271,11 @@ Built with [Rustwork](https://github.com/rustwork) 🦀
             let shared_str = "shared".to_string();
             services
                 .iter()
-                .chain(if create_shared { Some(&shared_str) } else { None })
+                .chain(if create_shared {
+                    Some(&shared_str)
+                } else {
+                    None
+                })
                 .map(|s| format!("│   │   ├── {}/\n", s))
                 .collect::<String>()
         },
@@ -313,7 +316,7 @@ Built with [Rustwork](https://github.com/rustwork) 🦀
 
 async fn create_shared_library(
     shared_path: &Path,
-    workspace_name: &str,
+    _workspace_name: &str,
     env: &minijinja::Environment<'_>,
 ) -> Result<()> {
     fs::create_dir_all(shared_path).await?;
@@ -449,41 +452,32 @@ pub async fn create_service_in_project(
     // Create .gitignore
     super::utils::create_file(&service_path.join(".gitignore"), env, "gitignore", &context).await?;
 
-    // Create migration crate
-    let migration_dir = service_path.join("migration");
-    fs::create_dir_all(&migration_dir).await?;
+    // Create migrations directory (SQL files only)
+    let migrations_dir = service_path.join("migrations");
+    fs::create_dir_all(&migrations_dir).await?;
 
+    // Create README for migrations
     super::utils::create_file(
-        &migration_dir.join("Cargo.toml"),
+        &migrations_dir.join("README.md"),
         env,
-        "migration_cargo.toml",
+        "migration_readme.md",
         &context,
     )
     .await?;
 
-    let migration_src_dir = migration_dir.join("src");
-    fs::create_dir_all(&migration_src_dir).await?;
-
+    // Create initial migration files
     super::utils::create_file(
-        &migration_src_dir.join("lib.rs"),
+        &migrations_dir.join("20240101_000001_initial.up.sql"),
         env,
-        "migration_lib.rs",
-        &context,
-    )
-    .await?;
-
-    super::utils::create_file(
-        &migration_src_dir.join("m20240101_000001_create_migrations_table.rs"),
-        env,
-        "migration_initial.rs",
+        "migration_initial_up.sql",
         &context,
     )
     .await?;
 
     super::utils::create_file(
-        &migration_src_dir.join("main.rs"),
+        &migrations_dir.join("20240101_000001_initial.down.sql"),
         env,
-        "migration_main.rs",
+        "migration_initial_down.sql",
         &context,
     )
     .await?;

@@ -1,6 +1,7 @@
 use super::collection::DiagnosticCollection;
 use super::parsers::parse_cargo_message;
 use anyhow::Result;
+use std::path::PathBuf;
 use std::process::Stdio;
 use std::sync::Arc;
 use tokio::io::{AsyncBufReadExt, BufReader};
@@ -10,12 +11,14 @@ use tokio::sync::RwLock;
 /// Diagnostic collector that monitors cargo output
 pub struct DiagnosticCollector {
     collection: Arc<RwLock<DiagnosticCollection>>,
+    workspace_path: PathBuf,
 }
 
 impl DiagnosticCollector {
-    pub fn new() -> Self {
+    pub fn new(workspace_path: PathBuf) -> Self {
         Self {
             collection: Arc::new(RwLock::new(DiagnosticCollection::new())),
+            workspace_path,
         }
     }
 
@@ -26,12 +29,14 @@ impl DiagnosticCollector {
     /// Start collecting diagnostics from cargo check output
     pub async fn start_collecting(&self) -> Result<()> {
         let collection = Arc::clone(&self.collection);
+        let workspace_path = self.workspace_path.clone();
 
         tokio::spawn(async move {
             loop {
-                // Run cargo check with JSON output
+                // Run cargo check with JSON output in the workspace directory
                 let mut child = match Command::new("cargo")
                     .args(["check", "--message-format=json", "--all-targets"])
+                    .current_dir(&workspace_path)
                     .stdout(Stdio::piped())
                     .stderr(Stdio::piped())
                     .spawn()

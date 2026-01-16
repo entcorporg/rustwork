@@ -151,15 +151,13 @@ edition = "2021"
 [dependencies]
 rustwork = { git = "https://github.com/entcorporg/rustwork.git", branch = "main" }
 shared = { path = "../shared" }
-{{ project_name }}-migration = { path = "migration" }
 axum = "0.7"
 tokio = { version = "1.40", features = ["full"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 anyhow = "1.0"
 serde = { version = "1.0", features = ["derive"] }
-sea-orm = { version = "1.0", features = ["sqlx-sqlite", "sqlx-postgres", "sqlx-mysql", "runtime-tokio-native-tls", "macros"] }
-sea-orm-migration = { version = "1.0" }
+sqlx = { version = "0.8", features = ["runtime-tokio-native-tls", "sqlite", "postgres", "mysql", "macros"] }
 "#;
 
 pub const GITIGNORE: &str = r#"# Rust
